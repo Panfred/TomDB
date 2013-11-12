@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+ 
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>TomDB.log</file>
+    <append>false</append>
+    <encoder>
+      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="DB" class="ch.qos.logback.classic.db.DBAppender">
+		<connectionSource class="ch.qos.logback.core.db.DriverManagerConnectionSource">
+			<driverClass>com.mysql.jdbc.Driver</driverClass>
+			<url>jdbc:mysql://localhost:3306/TomDB</url>
+			<user>root</user>
+			<password>root</password>
+		</connectionSource>
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+      		<level>TRACE</level>
+      		<onMatch>ACCEPT</onMatch>
+      		<onMismatch>DENY</onMismatch>
+    	</filter>
+</appender>
+  
+  <logger name="net.tomp2p" level="WARN"/>
+  
+  <root level="TRACE">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="DB" />
+  </root>
+
+       
+</configuration>
