@@ -20,18 +20,18 @@ public class SelectTest {
                     
                     long now = System.currentTimeMillis();
                     
+                    ResultSet results = stmt.executeQuery("SELECT * FROM tabtwo");
+                    while(results.next()) {
+                    	System.out.println("name: " + results.getString("nametwo")+" salary: " + results.getString("salary"));
+                    }
                     
-//                    ResultSet results = stmt.executeQuery("SELECT * FROM Salary WHERE salary >= 6000");
-//                    ResultSet results = stmt.executeQuery("SELECT * FROM Salary WHERE salary = 3500 OPTIONS (indexscan)");
-                    
+                    //JOIN
+//                    ResultSet results = stmt.executeQuery("SELECT * FROM tabone, tabtwo WHERE tabone.nameone = tabtwo.nametwo AND id > 90");
 //                    while(results.next()) {
-//                    	System.out.println("Employee "+ results.getInt("enum") + ": " + results.getString("name") + " ==> salary: " + results.getInt("salary"));
+//                    	System.out.println("name: " + results.getString("nameone")+" salary: " + results.getString("salary"));
 //                    }
                     
-                    ResultSet results = stmt.executeQuery("SELECT value FROM tabtest");
-                    while(results.next()) {
-                    	System.out.println("ID: " + results.getInt(0));
-                    }
+                    
                     
                     System.out.println("SELECT done in " + (System.currentTimeMillis() - now));
         

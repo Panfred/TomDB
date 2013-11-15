@@ -22,7 +22,6 @@ import uzh.tomdb.db.operations.Select;
 import uzh.tomdb.db.operations.helpers.AndCondition;
 import uzh.tomdb.db.operations.helpers.Block;
 import uzh.tomdb.db.operations.helpers.Conditions;
-import uzh.tomdb.db.operations.helpers.ConditionsHandler;
 import uzh.tomdb.db.operations.helpers.Utils;
 import uzh.tomdb.db.operations.helpers.WhereCondition;
 import uzh.tomdb.parser.MalformedSQLQuery;
@@ -36,16 +35,17 @@ import uzh.tomdb.parser.Tokens;
 public class IndexScan {
 	private final Logger logger = LoggerFactory.getLogger(IndexScan.class);  
 	private Select select;
-	private ConditionsHandler condHandler;
+	private Handler handler;
 	private Set<String> elaboratedBlocks = new HashSet<>();
 	
-	public IndexScan(Select select, ConditionsHandler ch) {
+	public IndexScan(Select select, Handler handler) {
 		this.select = select;
-		this.condHandler = ch;
+		this.handler = handler;
 	}
 	
 	public void start() throws MalformedSQLQuery, ClassNotFoundException, IOException {
 		boolean indexExistence = false;
+		ConditionsHandler condHandler = (ConditionsHandler) handler;
 
 		for (Conditions condition : condHandler.getAndCond()) {
 
@@ -85,6 +85,10 @@ public class IndexScan {
 		}
 	}
 
+	public void startIndex() {
+		
+	}
+	
 	private void indexScan(Conditions condition) throws ClassNotFoundException, IOException {
 		WhereCondition cond = (WhereCondition) condition;
 		int from = 0;
@@ -125,7 +129,7 @@ public class IndexScan {
 		List<Block> blocks = new ArrayList<>();
 		
 		for (Integer id: rowIds) {
-			List<Block> ls = Utils.getBlocks(id, id, select.getTr().getRowsNum(), select.getTr().getBlockSize());
+			List<Block> ls = Utils.getBlocks(id, id, select.getTr().getRowsNum(), select.getTr().getBlockSize(), select.getTabName());
 			Block block = ls.get(0);
 			if (!elaboratedBlocks.contains(block.toString())) {
 				elaboratedBlocks.add(block.toString());
@@ -140,17 +144,17 @@ public class IndexScan {
 		for (Block block : blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
-			condHandler.addToFutureManager(future.toString());
+			handler.addToFutureManager(future.toString());
 			future.addListener(new BaseFutureAdapter<FutureDHT>() {
 				@Override
 				public void operationComplete(FutureDHT future) throws Exception {
 					if (future.isSuccess()) {
 						logger.debug("GET from Table: Get succeed!");
-						condHandler.filterRows(future.getDataMap(), future.toString());
+						handler.filterRows(future.getDataMap(), future.toString());
 					} else {
 						// add exception?
 						logger.debug("GET from Table: Get failed!");
-						condHandler.removeFromFutureManager(future.toString());
+						handler.removeFromFutureManager(future.toString());
 					}
 				}	
 			});
@@ -184,7 +188,7 @@ public class IndexScan {
 
 	          // get the interval
 	          FutureDHT future = select.getPeer().get(key).setAll().start();
-	          condHandler.addToFutureManager(future.toString());
+	          handler.addToFutureManager(future.toString());
 	          future.addListener(new BaseFutureAdapter<FutureDHT>() {
 	              @Override
 	              public void operationComplete(FutureDHT future) throws Exception {
@@ -193,7 +197,7 @@ public class IndexScan {
 	                      
 	                      Map<Number160, Data> map = future.getDataMap();
 	                      
-	                      condHandler.removeFromFutureManager(future.toString());
+	                      handler.removeFromFutureManager(future.toString());
 	                      filterIndexScan(map);
 	                      
 	                      //IF block is full, we need to get children
@@ -204,7 +208,7 @@ public class IndexScan {
 	                      
 	                  } else {
 	                      //add exception?
-	                	  condHandler.removeFromFutureManager(future.toString());
+	                	  handler.removeFromFutureManager(future.toString());
 	                      logger.debug("GET DST: Get failed!");
 	                  }
 	              }

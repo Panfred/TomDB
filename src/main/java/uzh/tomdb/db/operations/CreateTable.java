@@ -4,6 +4,7 @@ package uzh.tomdb.db.operations;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -74,10 +75,11 @@ public class CreateTable extends Operation implements Operations{
 			logger.error("Data error", e);
 		}
 		
+		
     }
 
     private Map<String, Integer> getColumns() {
-        Map<String, Integer> map = new HashMap<>();
+        Map<String, Integer> map = new LinkedHashMap<>();
         for (int i = 0; i < columns.size(); i++) {
         	map.put(columns.get(i), i);
         }

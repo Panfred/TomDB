@@ -147,7 +147,7 @@ public class SQLParser {
         List<String> columns = new ArrayList<>();
         List<WhereCondition> whereConditions = new ArrayList<>();
         String scanType = "tablescan";
-        String tabNames;
+        List<String> tabNames = new ArrayList<>();
         
     	OUTER:
     	while (tokens.hasNext()) {
@@ -171,7 +171,19 @@ public class SQLParser {
         
         
         if (tokens.next().equals(Tokens.FROM)) {
-        	tabNames = tokens.next();
+        	OUTER:
+        	while (tokens.hasNext()) {
+        		String token = tokens.next();
+        		switch(token) {
+        		case Tokens.COMMA:
+        			break;
+        		case Tokens.WHERE:
+        			tokens.previous();
+        			break OUTER;
+        		default:
+        			tabNames.add(token);
+        		}
+        	}
         } else {
             throw new MalformedSQLQuery(tokens);
         }
@@ -191,8 +203,15 @@ public class SQLParser {
             	scanType = tmpList.get(0);
             }
         }
-
-        Select select = new Select(allColumns, tabNames, columns, whereConditions, scanType);
+        
+        Select select;
+        
+        if (tabNames.size() == 1) {
+        	select = new Select(allColumns, tabNames.get(0), columns, whereConditions, scanType);
+        } else {
+        	select = new Select(allColumns, tabNames, columns, whereConditions, scanType);
+        }
+        
         select.init();
         return select.getResultSet();
 

@@ -47,6 +47,18 @@ public class WhereCondition implements Conditions{
     	this.boolOperator = bool;
     }
     
+    public boolean isJoinCondition() throws MalformedSQLQuery {
+    	
+    	if(column.contains(".")) {
+    		if (operator.equals(Tokens.EQUAL) && value.contains(".")) {
+    			return true;
+    		} else {
+    			throw new MalformedSQLQuery("Wrong JOIN condition");
+    		}
+    	}
+    	return false;
+    }
+    
     public void setColOrVal(String val) throws MalformedSQLQuery {
         if (column.isEmpty()) {
             column = val;

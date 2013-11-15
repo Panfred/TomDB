@@ -19,7 +19,6 @@ import uzh.tomdb.db.operations.Delete;
 import uzh.tomdb.db.operations.Insert;
 import uzh.tomdb.db.operations.Operations;
 import uzh.tomdb.db.operations.Update;
-import uzh.tomdb.db.operations.helpers.FreeBlocksHandler;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 import uzh.tomdb.p2p.DBPeer;
@@ -107,7 +106,6 @@ public class QueryEngine {
             
             if (tabName == null) {
             	tabName = ins.getTabName();
-            	System.out.println(tabName);
             	tabKey = Number160.createHash(tabName);
             	freeBlocks = new FreeBlocksHandler(tabName);
             	try {

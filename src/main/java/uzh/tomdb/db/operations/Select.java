@@ -31,6 +31,7 @@ public class Select extends Operation implements Operations {
 	private boolean allColumns = false;
 	private ResultSet resultSet;
 	private String scanType;
+	private List<String> tabNames;
 
 	public Select(boolean allColumns, String tabName, List<String> columns, List<WhereCondition> conditions, String scanType) {
 		super();
@@ -41,33 +42,56 @@ public class Select extends Operation implements Operations {
 		this.whereConditions = conditions;
 		this.scanType = scanType;
 	}
+	
+	public Select(boolean allColumns, List<String> tabNames, List<String> columns, List<WhereCondition> conditions, String scanType) {
+		super();
+		this.tabNames = tabNames;
+		this.allColumns = allColumns;
+		this.columns = columns;
+		this.whereConditions = conditions;
+		this.scanType = scanType;
+	}
+	
+	public Select(String tabName, TableRows tr, TableIndexes ti, TableColumns tc) {
+		super();
+		super.tabName = tabName;
+		super.tr = tr;
+		super.ti = ti;
+		super.tc = tc;
+	}
 
 	@Override
 	public void init() {
-		Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
-		Map<Number160, Data> tabRows = DBPeer.getTabRows();
-		Map<Number160, Data> tabIndexes = DBPeer.getTabIndexes();
-
 		try {
-			tc = (TableColumns) tabColumns.get(tabKey).getObject();
-			tr = (TableRows) tabRows.get(tabKey).getObject();
-			ti =  (TableIndexes) tabIndexes.get(tabKey).getObject();
+			if (getTabNames() != null) {
+				resultSet = new ResultSet();
+				new QueryExecuter(this);
+			} else {
+				Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
+				Map<Number160, Data> tabRows = DBPeer.getTabRows();
+				Map<Number160, Data> tabIndexes = DBPeer.getTabIndexes();
 
-			resultSet = new ResultSet();
-			resultSet.setColumns(tc.getColumns());
+				tc = (TableColumns) tabColumns.get(tabKey).getObject();
+				tr = (TableRows) tabRows.get(tabKey).getObject();
+				ti = (TableIndexes) tabIndexes.get(tabKey).getObject();
 
-			new QueryExecuter(this);
+				resultSet = new ResultSet();
 
+				new QueryExecuter(this);
+			}
 		} catch (ClassNotFoundException | IOException e) {
 			logger.error("Data error", e);
 		} catch (MalformedSQLQuery e) {
 			logger.error("SQL error", e);
 		}
 	}
-
 	
 	public void addToResultSet(Row row) {
 		resultSet.addRow(row);
+	}
+	
+	public void setResultSetColumns(Map<String, Integer> col) {
+		resultSet.setColumns(col);
 	}
 
 	public ResultSet getResultSet() {
@@ -89,6 +113,10 @@ public class Select extends Operation implements Operations {
 	
 	public boolean isAllColumns() {
 		return allColumns;
+	}
+
+	public List<String> getTabNames() {
+		return tabNames;
 	}
 
 	@Override

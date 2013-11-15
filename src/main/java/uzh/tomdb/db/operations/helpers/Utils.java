@@ -21,19 +21,19 @@ public class Utils {
      * @param blockCapacity
      * @return 
      */
-    public static Block getLastBlock(int rowId, int blockCapacity) {
+    public static Block getLastBlock(int rowId, int blockCapacity, String table) {
         Block block;
        
         if (rowId % blockCapacity != 0) {
             if (rowId / blockCapacity > 0) {
                 int lower = rowId - (rowId % blockCapacity);
-                block = new Block(lower + 1, lower + blockCapacity);
+                block = new Block(lower + 1, lower + blockCapacity, table);
             } else {
-                block = new Block(1, blockCapacity);
+                block = new Block(1, blockCapacity, table);
             }
            
         } else {
-            block = new Block(rowId - blockCapacity + 1, rowId);
+            block = new Block(rowId - blockCapacity + 1, rowId, table);
         }
         
         return block;  
@@ -48,7 +48,7 @@ public class Utils {
      * @param blockCapacity
      * @return 
      */
-    public static List<Block> getBlocks(int from, int to, int numRows, int blockCapacity) {
+    public static List<Block> getBlocks(int from, int to, int numRows, int blockCapacity, String table) {
         List<Block> retVal = new ArrayList<>();
         int blocks;
         
@@ -65,19 +65,19 @@ public class Utils {
 
             if (lower <= from && upper >= from) {
                 if (!added) {
-                    retVal.add(new Block(lower, upper));
+                    retVal.add(new Block(lower, upper, table));
                     added = true;
                 }
             }
             if (lower <= to && upper >= to) {
                 if (!added) {
-                    retVal.add(new Block(lower, upper));
+                    retVal.add(new Block(lower, upper, table));
                     added = true;
                 }
             }
             if (lower > from && upper < to) {
                 if (!added) {
-                    retVal.add(new Block(lower, upper));
+                    retVal.add(new Block(lower, upper, table));
                 }
             }
 

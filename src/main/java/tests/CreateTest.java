@@ -18,12 +18,10 @@ public class CreateTest {
                     Statement stmt = con.createStatement();
                     
                     long now = System.currentTimeMillis();
-                    
-                    
-//                    stmt.execute("CREATE TABLE Salary (enum, name, salary) OPTIONS (blocksize:2)").start();
-//                    stmt.execute("CREATE TABLE Salary (enum, name, salary) OPTIONS (index:salary, blocksize:2)").start();
 
-                    stmt.execute("CREATE TABLE tabtest (id, value) OPTIONS (uniqueindex:value, blocksize:20, storage:insertionorder)").start();
+//                    stmt.execute("CREATE TABLE tabone (id, nameone, address) OPTIONS (blocksize:20, storage:insertionorder)");
+                    
+                    stmt.execute("CREATE TABLE tabtwo (nametwo, salary) OPTIONS (blocksize:20, storage:insertionorder)").start();
                     
                     System.out.println("CREATE TABLE done in " + (System.currentTimeMillis() - now));
 

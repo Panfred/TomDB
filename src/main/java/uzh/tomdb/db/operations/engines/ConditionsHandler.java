@@ -1,9 +1,10 @@
-package uzh.tomdb.db.operations.helpers;
+package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,24 +16,53 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uzh.tomdb.db.operations.Select;
+import uzh.tomdb.db.operations.helpers.AndCondition;
+import uzh.tomdb.db.operations.helpers.Conditions;
+import uzh.tomdb.db.operations.helpers.Row;
+import uzh.tomdb.db.operations.helpers.WhereCondition;
 import uzh.tomdb.parser.MalformedSQLQuery;
 import uzh.tomdb.parser.Tokens;
 
-public class ConditionsHandler {
+public class ConditionsHandler implements Handler{
 	private final Logger logger = LoggerFactory.getLogger(ConditionsHandler.class);
 	private Select select;
 	private Set<String> futureManager = new HashSet<>();
 	private List<WhereCondition> conditions;
 	private AndCondition andCond = new AndCondition();
 	private List<Conditions> orCond = new ArrayList<>();
+	private Map<String, Integer> resultRowCols = new LinkedHashMap<>();
 	
 	public ConditionsHandler(Select select) throws MalformedSQLQuery {
 		this.select = select;
 		this.conditions = select.getWhereConditions();
+		
+		//Set columns in result set!!
+		if (select.isAllColumns()) {
+			select.setResultSetColumns(select.getTc().getColumns());
+		} else {
+			Map<String, Integer> cols = new LinkedHashMap<>();
+			for (int i = 0; i < select.getColumns().size(); i++) {
+				cols.put(select.getColumns().get(i), i);
+			}
+			select.setResultSetColumns(cols);
+		}
+		
+		init();
+	}
+	
+	public ConditionsHandler(Select select, List<WhereCondition> conditions) throws MalformedSQLQuery {
+		this.select = select;
+		this.conditions = conditions;
+		
 		init();
 	}
 	
 	private void init() throws MalformedSQLQuery {
+		//Set result row columns
+		for (int i = 0; i < select.getColumns().size(); i++) {
+			resultRowCols.put(select.getColumns().get(i), i);
+		}
+		
 		Iterator<WhereCondition> it = conditions.iterator();
 		while (it.hasNext()) {
 			WhereCondition cond = it.next();
@@ -62,6 +92,7 @@ public class ConditionsHandler {
 				break;		
 			}
 		}
+		
 	}
 
 	private void recParseAndCond(WhereCondition cond, Iterator<WhereCondition> it) throws MalformedSQLQuery {
@@ -124,6 +155,26 @@ public class ConditionsHandler {
 		}
 	}
 	
+	public void filterJoinedRow(Row row) throws NumberFormatException, MalformedSQLQuery {
+		
+		if (andCond.getConditions().size() == 0 && orCond.size() == 0) {
+			select.addToResultSet(filterColumns(row));
+		} else if (orCond.size() > 0 && andCond.getConditions().size() > 0) { //if both set is the case of () OR () AND () ...
+			if (checkOrConditions(row) || checkAndConditions(andCond, row)) {
+				select.addToResultSet(filterColumns(row));
+			}
+		} else if (orCond.size() > 0) {
+			if (checkOrConditions(row)) {
+				select.addToResultSet(filterColumns(row));
+			}
+		} else if (andCond.getConditions().size() > 0) {
+			if (checkAndConditions(andCond, row)) {
+				select.addToResultSet(filterColumns(row));
+			}
+		}
+		
+	}
+	
 	private boolean checkOrConditions(Row row) throws NumberFormatException, MalformedSQLQuery {
 		int trueNum = 0;
 		for (Conditions cond: orCond) {
@@ -161,7 +212,7 @@ public class ConditionsHandler {
 	
 	private boolean checkCondition(WhereCondition condition, Row row) throws NumberFormatException, MalformedSQLQuery {
 		
-		int colVal = Integer.parseInt(row.getCol(select.getTc().getColumnId(condition.getColumn())));
+		int colVal = Integer.parseInt(row.getCol(condition.getColumn()));
 		int val = Integer.parseInt(condition.getValue());
 
 		switch (condition.getOperator()) {
@@ -201,25 +252,24 @@ public class ConditionsHandler {
 
 	private Row filterColumns(Row row) {
 
-		if (select.isAllColumns() || select.getColumns().size() == select.getTc().getNumOfCols()) {
+		if (select.isAllColumns()) {
 			return row;
 		} else {
-
-			Row tmpRow = new Row(row.getRowID());
+			
+			Row tmpRow = new Row(select.getTabName(), row.getRowID(), resultRowCols);
 			for (int i = 0; i < select.getColumns().size(); i++) {
-				try {
-					tmpRow.setCol(i, row.getCol(select.getTc().getColumnId(select.getColumns().get(i))));
-				} catch (MalformedSQLQuery e) {
-					logger.error("filterColumns SQL error", e);
-				}
+				tmpRow.setCol(i, row.getCol(select.getColumns().get(i)));
 			}
 			return tmpRow;
-	}
+		}
 
 	}
+	
+	@Override
 	public void addToFutureManager(String future) {
 		futureManager.add(future);
 	}
+	@Override
 	public void removeFromFutureManager(String future) {
 		futureManager.remove(future);
 	}

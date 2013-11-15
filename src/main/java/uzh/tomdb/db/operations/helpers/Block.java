@@ -13,23 +13,25 @@ public class Block {
 
     private final int from;
     private final int to;
+    private final String table;
 
 
     /**
      * @param from Interval from
      * @param to Interval to
      */
-    public Block(int from, int to) {
+    public Block(int from, int to, String table) {
         if (from > to) {
             throw new IllegalArgumentException("from cannot be greater than to");
         }
         this.from = from;
         this.to = to;
+        this.table = table;
     }
 
     @Override
     public String toString() {
-        return "Block:[" + from + ".." + to + "]";
+        return "Block:"+table+":[" + from + ".." + to + "]";
     }
 
     public Number160 getHash() {

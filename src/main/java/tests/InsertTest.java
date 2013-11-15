@@ -1,7 +1,6 @@
 package tests;
 
 import uzh.tomdb.api.Connection;
-import uzh.tomdb.api.ResultSet;
 import uzh.tomdb.api.Statement;
 import uzh.tomdb.main.TomDB;
 
@@ -31,10 +30,16 @@ public class InsertTest {
 //                    stmt.execute("INSERT INTO Salary VALUES (8, 'Sem', 3500)");
 //                    stmt.start();
                     
-                    	for (int i = 0; i < 1000; i++) {
-                        	stmt.execute("INSERT INTO tabtest VALUES (ID, "+i+")");
-                        }
-                    	 stmt.start();
+//                    	for (int i = 0; i < 100; i++) {
+//                        	stmt.execute("INSERT INTO tabone VALUES ("+i+", name"+i+", addressof)");
+//                        }
+                    	
+                    	 for (int i = 0; i < 1000; i++) {
+                         	stmt.execute("INSERT INTO tabtwo VALUES (name"+i+", "+i*100+")");
+                         }
+                    	 
+                    	 
+                     	 stmt.start();
                     
 //                    	stmt.execute("FETCH METADATA");
 //                    	 

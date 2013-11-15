@@ -18,8 +18,8 @@ import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.db.indexes.IndexHandler;
 import uzh.tomdb.db.indexes.UniqueIndexHandler;
+import uzh.tomdb.db.operations.engines.FreeBlocksHandler;
 import uzh.tomdb.db.operations.helpers.Block;
-import uzh.tomdb.db.operations.helpers.FreeBlocksHandler;
 import uzh.tomdb.db.operations.helpers.Row;
 import uzh.tomdb.db.operations.helpers.Utils;
 import uzh.tomdb.p2p.DBPeer;
@@ -90,7 +90,7 @@ public class Insert extends Operation implements Operations{
     	
     	Row row = getRow(rowId);
     	
-        Block block = Utils.getLastBlock(rowId, blockSize);
+        Block block = Utils.getLastBlock(rowId, blockSize, tabName);
 
         FutureDHT future = peer.put(Number160.createHash(block.toString())).setData(new Number160(rowId), new Data(row)).start();
         future.addListener(new BaseFutureAdapter<FutureDHT>() {
@@ -177,15 +177,15 @@ public class Insert extends Operation implements Operations{
         Row row = null;
         if (columns == null) {
             if ((values.size() == tc.getNumOfCols())) {
-                row = new Row(rowId, values);
+                row = new Row(tabName, rowId, values, tc.getColumns());
             } else {
             	throw new MalformedSQLQuery("Num of Values NOT equal num of Columns!");       
             }
         } 
         else {
-            row = new Row(rowId);
+            row = new Row(tabName, rowId, tc.getColumns());
             for (int i = 0; i < columns.size(); i++) {
-            	row.setCol(tc.getColumnId(columns.get(i)), values.get(i));
+            	row.setCol(columns.get(i), values.get(i));
             }   
         }
         return row;
@@ -200,7 +200,7 @@ public class Insert extends Operation implements Operations{
 	 */
 	@Override
 	public void init() {
-		this.init(null,null,null);
+		this.init(null,null,null);	
 	}
 
 }

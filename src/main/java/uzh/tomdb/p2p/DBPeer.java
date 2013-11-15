@@ -4,7 +4,9 @@ package uzh.tomdb.p2p;
 import java.io.IOException;
 import java.security.PublicKey;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.SortedMap;
 
 import net.tomp2p.futures.BaseFutureAdapter;
@@ -14,7 +16,6 @@ import net.tomp2p.p2p.Peer;
 import net.tomp2p.p2p.PeerMaker;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
-import net.tomp2p.rpc.SimpleBloomFilter;
 import net.tomp2p.storage.Data;
 import net.tomp2p.storage.StorageGeneric;
 import net.tomp2p.storage.StorageMemory;
@@ -43,7 +44,7 @@ public class DBPeer {
     private static long timeIndexes;
     
     public DBPeer(int id) throws IOException {
-        peer = new PeerMaker(new Number160(id)).setPorts(4000 + (id % 1000)).makeAndListen();
+    	peer = new PeerMaker(Number160.createHash(id)).setPorts(4000 + (id % 1000)).makeAndListen();
         FutureBootstrap fb = peer.bootstrap().setBroadcast().setPorts(4000).start();
         fb.awaitUninterruptibly();
         if(fb.isFailed()) {
@@ -51,15 +52,27 @@ public class DBPeer {
             peer = new PeerMaker(new Number160(id)).setPorts(4000).makeAndListen();
         } else {
             logger.debug("Bootstrap successfull!");
-            if (fb.getBootstrapTo() != null) {
-                peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
-            }
+            //if (fb.getBootstrapTo() != null) {
+            //    peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
+            //}
         }
     }
     
     public DBPeer(int id, Peer[] peers) throws IOException {
-        this(id);
-        localPeers = peers;  
+        localPeers = peers;
+    	peer = new PeerMaker(Number160.createHash(id)).setPorts(4000 + (id % 1000)).makeAndListen();
+        FutureBootstrap fb =peer.bootstrap().setPeerAddress(localPeers[0].getPeerAddress()).start();
+//        FutureBootstrap fb = peer.bootstrap().setBroadcast().setPorts(4000).start();
+        fb.awaitUninterruptibly();
+        if(fb.isFailed()) {
+            logger.debug("Bootstrap failed, becoming bootstrap peer...");
+            peer = new PeerMaker(new Number160(id)).setPorts(4000).makeAndListen();
+        } else {
+            logger.debug("Bootstrap successfull!");
+            //if (fb.getBootstrapTo() != null) {
+            //    peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
+            //}
+        }
     }
 
     public Connection getConnection() {
@@ -157,7 +170,10 @@ public class DBPeer {
             logger.debug("Success fetching Table ROWS");
             if(!tabRows.isEmpty()) {
             	try {
-        			System.out.println("FETCH: "+((TableRows) tabRows.entrySet().iterator().next().getValue().getObject()).toString());
+            		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
+            		while(it.hasNext()) {
+            			System.out.println("FETCH: "+((TableRows) it.next().getValue().getObject()).toString());
+            		}
         		} catch (ClassNotFoundException | IOException e) {
         			// TODO Auto-generated catch block
         			e.printStackTrace();
@@ -250,7 +266,10 @@ public class DBPeer {
     public static void updateTableRows(Map<Number160, Data> tabRows) {
     	if(!tabRows.isEmpty()) {
         	try {
-    			System.out.println("UPDATE: "+((TableRows) tabRows.entrySet().iterator().next().getValue().getObject()).toString());
+        		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
+        		while(it.hasNext()) {
+        			System.out.println("UPDATE: "+((TableRows) it.next().getValue().getObject()).toString());
+        		}
     		} catch (ClassNotFoundException | IOException e) {
     			// TODO Auto-generated catch block
     			e.printStackTrace();

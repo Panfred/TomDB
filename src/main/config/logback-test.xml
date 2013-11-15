@@ -15,7 +15,8 @@
     </encoder>
   </appender>
   
-  <appender name="DB" class="ch.qos.logback.classic.db.DBAppender">
+ <!--  
+ <appender name="DB" class="ch.qos.logback.classic.db.DBAppender">
 		<connectionSource class="ch.qos.logback.core.db.DriverManagerConnectionSource">
 			<driverClass>com.mysql.jdbc.Driver</driverClass>
 			<url>jdbc:mysql://localhost:3306/TomDB</url>
@@ -28,12 +29,17 @@
       		<onMismatch>DENY</onMismatch>
     	</filter>
 </appender>
-  
-  <logger name="net.tomp2p" level="WARN"/>
+--> 
+
+  <logger name="uzh.tomdb" level="DEBUG"/>
+  <logger name="net.tomp2p" level="OFF"/>
+  <logger name="net.tomp2p.rpc.StorageRPC" level="OFF"/>
+  <!-- <logger name="net.tomp2p.p2p.DistributedRouting" level="DEBUG"/> -->
   
   <root level="TRACE">
     <appender-ref ref="STDOUT" />
-    <appender-ref ref="DB" />
+    <!-- <appender-ref ref="FILE" /> -->
+   <!-- <appender-ref ref="DB" /> --> 
   </root>
 
        
