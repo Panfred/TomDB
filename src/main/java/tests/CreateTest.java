@@ -21,7 +21,7 @@ public class CreateTest {
 
 //                    stmt.execute("CREATE TABLE tabone (id, nameone, address) OPTIONS (blocksize:20, storage:insertionorder)");
                     
-                    stmt.execute("CREATE TABLE tabtwo (nametwo, salary) OPTIONS (blocksize:20, storage:insertionorder)").start();
+                    stmt.execute("CREATE TABLE tabtwo (nametwo, salary) OPTIONS (index:salary, blocksize:20, storage:insertionorder)").start();
                     
                     System.out.println("CREATE TABLE done in " + (System.currentTimeMillis() - now));
 
