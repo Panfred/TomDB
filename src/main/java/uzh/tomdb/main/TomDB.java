@@ -1,7 +1,4 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package uzh.tomdb.main;
 
 import java.io.IOException;
@@ -19,7 +16,7 @@ import uzh.tomdb.p2p.DBPeer;
 
 /**
  *
- * @author Panfred
+ * @author Francesco Luminati
  */
 public class TomDB {
     private static final Logger logger = LoggerFactory.getLogger(TomDB.class);
@@ -34,17 +31,26 @@ public class TomDB {
         if (peer == null) {
             try {
                 if (peers != null) {
-                    peer = new DBPeer(rnd.nextInt(), peers);
+                    peer = new DBPeer(rnd, peers);
                 } else {
-                    peer = new DBPeer(rnd.nextInt());
+                    peer = new DBPeer(rnd);
                 }   
             } catch (IOException ex) {
                 logger.error("Failed to start a new Peer", ex);
             }
+            logger.debug("Successfully created a DB Peer!");
             return peer.getConnection();
         } else {
+        	logger.debug("DB Peer already created!");
             return peer.getConnection();
         }  
+    }
+    
+    @SuppressWarnings("static-access")
+	public static void closeConnection() {
+    	peer.getPeer().shutdown();
+    	logger.debug("Closing peers down...");
+    	System.exit(0);
     }
     
     public static Peer[] createLocalPeers(int num) {
@@ -73,6 +79,7 @@ public class TomDB {
         		peers[i].getPeerBean().getPeerMap().peerFound(peers[j].getPeerAddress(), null);
         	}
         }
+        logger.debug("Successfully started {} local Peers!", num);
         return peers;
     }
     

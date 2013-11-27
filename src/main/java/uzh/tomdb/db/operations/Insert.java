@@ -89,22 +89,25 @@ public class Insert extends Operation implements Operations{
     	int blockSize = tr.getBlockSize();
     	
     	Row row = getRow(rowId);
-    	
-        Block block = Utils.getLastBlock(rowId, blockSize, tabName);
-
-        FutureDHT future = peer.put(Number160.createHash(block.toString())).setData(new Number160(rowId), new Data(row)).start();
-        future.addListener(new BaseFutureAdapter<FutureDHT>() {
-            @Override
-            public void operationComplete(FutureDHT future) throws Exception {
-                if (future.isSuccess()) {
-                    logger.debug("INSERT (insertion order): Put succeed!");
-                } else {
-                    //add exception?
-                    logger.debug("INSERT (insertion order): Put failed!");
+    	if (putIndex(row)) {
+    		Block block = Utils.getLastBlock(rowId, blockSize, tabName);
+            
+            FutureDHT future = peer.put(Number160.createHash(block.toString())).setData(new Number160(rowId), new Data(row)).start();
+            future.addListener(new BaseFutureAdapter<FutureDHT>() {
+                @Override
+                public void operationComplete(FutureDHT future) throws Exception {
+                    if (future.isSuccess()) {
+                        logger.debug("INSERT (insertion order): Put succeed!");
+                    } else {
+                        //add exception?
+                        logger.debug("INSERT (insertion order): Put failed!");
+                    }
                 }
-            }
-        });
-        putIndex(row);
+            });
+    	} else {
+			logger.debug("Value already indexed, row was not put!");
+		}
+        
     }
     
     private void putFullBlocks() throws IOException, MalformedSQLQuery, ClassNotFoundException {
@@ -117,40 +120,50 @@ public class Insert extends Operation implements Operations{
     	}
     	
     	if (freeBlocks.size() > 0) {
+    		
     		Number160 blockKey = freeBlocks.keySet().iterator().next();
-    		int rowId = (int) freeBlocks.get(blockKey).getObject();
+			@SuppressWarnings("unchecked")
+			List<Integer> rowIds = (List<Integer>) freeBlocks.get(blockKey).getObject();
+    		
+    		int rowId = rowIds.get(0);
+    		rowIds.remove(0);
+    		logger.debug("FreeBlocks is using this id:" + rowId);
+    		if (rowIds.size() > 0) {
+    			freeBlocks.put(blockKey, new Data(rowIds));
+    		} else {
+    			freeBlocks.remove(blockKey);
+    		}
     		
     		Row row = getRow(rowId);
-
-            FutureDHT future = peer.put(blockKey).setData(new Number160(rowId), new Data(row)).start();
-            future.addListener(new BaseFutureAdapter<FutureDHT>() {
-                @Override
-                public void operationComplete(FutureDHT future) throws Exception {
-                    if (future.isSuccess()) {
-                        logger.debug("INSERT (full blocks): Put succeed!");
-                    } else {
-                        //add exception?
-                        logger.debug("INSERT (full blocks): Put failed!");
+    		if (putIndex(row)) {
+    			FutureDHT future = peer.put(blockKey).setData(new Number160(rowId), new Data(row)).start();
+                future.addListener(new BaseFutureAdapter<FutureDHT>() {
+                    @Override
+                    public void operationComplete(FutureDHT future) throws Exception {
+                        if (future.isSuccess()) {
+                            logger.debug("INSERT (full blocks): Put succeed!");
+                        } else {
+                            //add exception?
+                            logger.debug("INSERT (full blocks): Put failed!");
+                        }
                     }
-                }
-            });
-            
-            freeBlocks.remove(blockKey);
-            putIndex(row);
-    		
+                });
+    		} else {
+    			logger.debug("Value already indexed, row was not put!");
+    		}
     	} else {
     		putInsertionOrder();
     	}
     }
     
-    private void putIndex(Row row) throws MalformedSQLQuery, IOException, ClassNotFoundException {
-		
+    private boolean putIndex(Row row) throws MalformedSQLQuery, IOException, ClassNotFoundException {
+		boolean success = false;
     	if (indexes.size() > 0) {
 			IndexHandler ih = new IndexHandler(peer);
 			for (String index: indexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), index);
+					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), index);
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
@@ -163,14 +176,14 @@ public class Insert extends Operation implements Operations{
 			for (String index: uniqueIndexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), index);
+					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), index);
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
 				}
 			}
 		}
-		
+		return success;
 	}
 
     private Row getRow(int rowId) throws MalformedSQLQuery {

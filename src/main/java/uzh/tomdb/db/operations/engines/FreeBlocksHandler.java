@@ -20,8 +20,8 @@ public class FreeBlocksHandler {
 	private final Peer peer = DBPeer.getPeer();
 	private String tabName;
 	private Number160 key;
-	private boolean fullBlocksStorage = false;
 	private Map<Number160, Data> freeBlocks;
+	private int isFullBlocksStorage = 0;
 	
 	public FreeBlocksHandler(String tabName) {
 		key = Number160.createHash("FreeBlocks:"+tabName);
@@ -30,31 +30,27 @@ public class FreeBlocksHandler {
 	}
 	
 	private void init() {
-		checkFullBlocksStorage();
-		fetch();
+		if (isFullBlocksStorage()) {
+			fetch();
+		}
 	}
 	
+	//Blocking
 	private void fetch() {
-		if(fullBlocksStorage) {
 			FutureDHT future = peer.get(key).setAll().start();
-	        future.addListener(new BaseFutureAdapter<FutureDHT>() {
-	            @Override
-	            public void operationComplete(FutureDHT future) throws Exception {
-	                if (future.isSuccess()) {
-	                	freeBlocks = future.getDataMap();
-	                    logger.debug("FREEBLOCKS: Get succeed!");     
-	                } else {
-	                    //add exception?
-	                    freeBlocks = new HashMap<>();
-	                    logger.debug("FREEBLOCKS: Get failed!");
-	                }
-	            }
-	        });
-		}
+			future.awaitUninterruptibly();
+            if (future.isSuccess()) {
+            	freeBlocks = future.getDataMap();
+                logger.debug("FREEBLOCKS: Get succeed!");     
+            } else {
+                //add exception?
+                freeBlocks = new HashMap<>();
+                logger.debug("FREEBLOCKS: Get failed!");
+            }
 	}
 
 	public void update() {
-		if(fullBlocksStorage && freeBlocks.size() > 0) { 
+		if(isFullBlocksStorage() && freeBlocks.size() > 0) { 
 			FutureDHT future = peer.put(key).setDataMap(freeBlocks).start();
 	        future.addListener(new BaseFutureAdapter<FutureDHT>() {
 	            @Override
@@ -69,20 +65,30 @@ public class FreeBlocksHandler {
 	        });
 		}
 	}
-	
-	private void checkFullBlocksStorage() {
-		try {
-			TableRows tr = (TableRows) DBPeer.getTabRows().get(Number160.createHash(tabName)).getObject();
-			if (tr.getStorage().equals("fullblocks")) {
-				fullBlocksStorage = true;
-			}
-		} catch (ClassNotFoundException | IOException e) {
-			logger.error("Data error", e);
-		}
-	}
+
 
 	public boolean isFullBlocksStorage() {
-		return fullBlocksStorage;
+		if (isFullBlocksStorage == 0) {
+			try {
+				TableRows tr = (TableRows) DBPeer.getTabRows().get(Number160.createHash(tabName)).getObject();
+				if (tr.getStorage().equals("fullblocks")) {
+					isFullBlocksStorage = 1;
+					return true;
+				} else {
+					isFullBlocksStorage = 2;
+					return false;
+				}
+			} catch (ClassNotFoundException | IOException e) {
+				logger.error("Data error", e);
+			}
+		} else {
+			if (isFullBlocksStorage == 1) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		return false;
 	}
 
 	public Map<Number160, Data> getFreeBlocks() {

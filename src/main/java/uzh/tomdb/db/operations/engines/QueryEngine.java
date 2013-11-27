@@ -121,8 +121,8 @@ public class QueryEngine {
         			tabIndexes.put(tabKey, new Data(ti));
         			tabName = ins.getTabName();
                 	tabKey = Number160.createHash(tabName);
-    				tr = (TableRows) tabRows.get(Number160.createHash(tabName)).getObject();
-    				ti =  (TableIndexes) tabIndexes.get(Number160.createHash(tabName)).getObject();
+    				tr = (TableRows) tabRows.get(tabKey).getObject();
+    				ti =  (TableIndexes) tabIndexes.get(tabKey).getObject();
     			} catch (ClassNotFoundException | IOException e) {
     				logger.error("Data error", e);
     			}
@@ -133,7 +133,12 @@ public class QueryEngine {
             }
             
             ins.init(freeBlocks, tr, ti);
-        
+            try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
         
         if (freeBlocks.isFullBlocksStorage()) {
@@ -169,11 +174,23 @@ public class QueryEngine {
     }
 
     private void updates() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    	DBPeer.fetchTableRows();
+        DBPeer.fetchTableIndexes();
+        
+        for (Update update: updates) {
+        	update.init();
+        }
     }
 
     private void deletes() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    	DBPeer.fetchTableRows();
+        DBPeer.fetchTableIndexes();
+        
+        for (Delete delete: deletes) {
+        	delete.init();
+        }
+        
+        //DBPeer.updateTableIndexes(); //Set min max of indexes not done
     }
  
 }

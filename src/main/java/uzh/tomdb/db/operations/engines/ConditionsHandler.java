@@ -30,21 +30,23 @@ public class ConditionsHandler implements Handler{
 	private List<WhereCondition> conditions;
 	private AndCondition andCond = new AndCondition();
 	private List<Conditions> orCond = new ArrayList<>();
-	private Map<String, Integer> resultRowCols = new LinkedHashMap<>();
+	private Map<String, Integer> resultRowCols;
 	
 	public ConditionsHandler(Select select) throws MalformedSQLQuery {
 		this.select = select;
 		this.conditions = select.getWhereConditions();
 		
-		//Set columns in result set!!
+		//Set columns in result set and resultRowCols!!
 		if (select.isAllColumns()) {
 			select.setResultSetColumns(select.getTc().getColumns());
+			resultRowCols = select.getTc().getColumns();
 		} else {
 			Map<String, Integer> cols = new LinkedHashMap<>();
 			for (int i = 0; i < select.getColumns().size(); i++) {
 				cols.put(select.getColumns().get(i), i);
 			}
 			select.setResultSetColumns(cols);
+			resultRowCols = cols;
 		}
 		
 		init();
@@ -58,10 +60,6 @@ public class ConditionsHandler implements Handler{
 	}
 	
 	private void init() throws MalformedSQLQuery {
-		//Set result row columns
-		for (int i = 0; i < select.getColumns().size(); i++) {
-			resultRowCols.put(select.getColumns().get(i), i);
-		}
 		
 		Iterator<WhereCondition> it = conditions.iterator();
 		while (it.hasNext()) {
@@ -128,21 +126,24 @@ public class ConditionsHandler implements Handler{
 			
 			Row row = (Row) entry.getValue().getObject();
 			
-			if (andCond.getConditions().size() == 0 && orCond.size() == 0) {
-				select.addToResultSet(filterColumns(row));
-			} else if (orCond.size() > 0 && andCond.getConditions().size() > 0) { //if both set is the case of () OR () AND () ...
-				if (checkOrConditions(row) || checkAndConditions(andCond, row)) {
+			//Skip empty rows!
+			if(row.getRowID() >= 0) {
+				if (andCond.getConditions().size() == 0 && orCond.size() == 0) {
 					select.addToResultSet(filterColumns(row));
+				} else if (orCond.size() > 0 && andCond.getConditions().size() > 0) { //if both set is the case of () OR () AND () ...
+					if (checkOrConditions(row) || checkAndConditions(andCond, row)) {
+						select.addToResultSet(filterColumns(row));
+					}
+				} else if (orCond.size() > 0) {
+					if (checkOrConditions(row)) {
+						select.addToResultSet(filterColumns(row));
+					}
+				} else if (andCond.getConditions().size() > 0) {
+					if (checkAndConditions(andCond, row)) {
+						select.addToResultSet(filterColumns(row));
+					}
 				}
-			} else if (orCond.size() > 0) {
-				if (checkOrConditions(row)) {
-					select.addToResultSet(filterColumns(row));
-				}
-			} else if (andCond.getConditions().size() > 0) {
-				if (checkAndConditions(andCond, row)) {
-					select.addToResultSet(filterColumns(row));
-				}
-			}
+			}	
 			
 		}
 		
@@ -253,9 +254,9 @@ public class ConditionsHandler implements Handler{
 	private Row filterColumns(Row row) {
 
 		if (select.isAllColumns()) {
+			logger.debug("RowID: " + row.getRowID());
 			return row;
-		} else {
-			
+		} else {	
 			Row tmpRow = new Row(select.getTabName(), row.getRowID(), resultRowCols);
 			for (int i = 0; i < select.getColumns().size(); i++) {
 				tmpRow.setCol(i, row.getCol(select.getColumns().get(i)));

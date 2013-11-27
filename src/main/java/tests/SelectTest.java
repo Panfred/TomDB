@@ -20,13 +20,13 @@ public class SelectTest {
                     
                     long now = System.currentTimeMillis();
                     
-                    ResultSet results = stmt.executeQuery("SELECT * FROM tabtwo");
+                    ResultSet results = stmt.executeQuery("SELECT * FROM tabone");
                     while(results.next()) {
-                    	System.out.println("name: " + results.getString("nametwo")+" salary: " + results.getString("salary"));
+                    	System.out.println("name: " + results.getString("nameone")+" address: " + results.getString("address"));
                     }
                     
                     //JOIN
-//                    ResultSet results = stmt.executeQuery("SELECT * FROM tabone, tabtwo WHERE tabone.nameone = tabtwo.nametwo AND id > 90");
+//                    ResultSet results = stmt.executeQuery("SELECT * FROM tabone, tabtwo WHERE tabone.id = tabtwo.idtwo OPTIONS (indexscan)");
 //                    while(results.next()) {
 //                    	System.out.println("name: " + results.getString("nameone")+" salary: " + results.getString("salary"));
 //                    }

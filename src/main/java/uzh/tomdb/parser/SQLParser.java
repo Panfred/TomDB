@@ -168,8 +168,7 @@ public class SQLParser {
             }
 
         }
-        
-        
+           
         if (tokens.next().equals(Tokens.FROM)) {
         	OUTER:
         	while (tokens.hasNext()) {
@@ -180,6 +179,8 @@ public class SQLParser {
         		case Tokens.WHERE:
         			tokens.previous();
         			break OUTER;
+        		case Tokens.OPTIONS:
+        			throw new MalformedSQLQuery(tokens, "OPTIONS not possible without WHERE!");
         		default:
         			tabNames.add(token);
         		}
@@ -189,21 +190,23 @@ public class SQLParser {
         }
         
         if (tokens.hasNext()) {
-            if (tokens.next().equals(Tokens.WHERE)) {
-                 getWhereConditions(tokens, whereConditions);
+        	if (tokens.next().equals(Tokens.WHERE)) {
+                getWhereConditions(tokens, whereConditions);
             } else {
                 throw new MalformedSQLQuery(tokens);
             }
         }
         
         if (tokens.hasNext()) {
-            if (tokens.next().equals(Tokens.OPTIONS)) {
+        	if (tokens.next().equals(Tokens.OPTIONS)){
             	List<String> tmpList = new ArrayList<>();
             	getParenthesis(tokens, tmpList);
             	scanType = tmpList.get(0);
+            } else {
+                throw new MalformedSQLQuery(tokens);
             }
         }
-        
+
         Select select;
         
         if (tabNames.size() == 1) {
@@ -221,6 +224,7 @@ public class SQLParser {
         String tabName;
         List<SetCondition> setConditions = new ArrayList<>();
         List<WhereCondition> whereConditions = new ArrayList<>();
+        String scanType = "tablescan";;
         
         tabName = tokens.next();
         
@@ -230,19 +234,35 @@ public class SQLParser {
             throw new MalformedSQLQuery(tokens);
         }
         
-        if (tokens.next().equals(Tokens.WHERE)) {
-            getWhereConditions(tokens, whereConditions);
-        } else {
-            throw new MalformedSQLQuery(tokens);
+        if (tokens.hasNext()) {
+        	String token = tokens.next();
+        	if (token.equals(Tokens.WHERE)) {
+                getWhereConditions(tokens, whereConditions);
+            } else if (token.equals(Tokens.OPTIONS)){
+            	throw new MalformedSQLQuery(tokens, "OPTIONS not possible without WHERE!");
+            } else {
+            	throw new MalformedSQLQuery(tokens);
+            }
         }
         
-        Update update = new Update(tabName, setConditions, whereConditions);
+        if (tokens.hasNext()) {
+        	if (tokens.next().equals(Tokens.OPTIONS)){
+            	List<String> tmpList = new ArrayList<>();
+            	getParenthesis(tokens, tmpList);
+            	scanType = tmpList.get(0);
+            } else {
+                throw new MalformedSQLQuery(tokens);
+            }
+        }
+        
+        Update update = new Update(tabName, setConditions, whereConditions, scanType);
         bufferedQueries.add(update);
     }
 
     private void delete(Tokenizer tokens) throws MalformedSQLQuery {
         String tabName;
         List<WhereCondition> whereConditions = new ArrayList<>();
+        String scanType = "tablescan";
 
         if (tokens.next().equals(Tokens.FROM)) {
             tabName = tokens.next();
@@ -250,13 +270,28 @@ public class SQLParser {
             throw new MalformedSQLQuery(tokens);
         }
 
-        if (tokens.next().equals(Tokens.WHERE)) {
-            getWhereConditions(tokens, whereConditions);
-        } else {
-            throw new MalformedSQLQuery(tokens);
+        if (tokens.hasNext()) {
+        	String token = tokens.next();
+        	if (token.equals(Tokens.WHERE)) {
+                getWhereConditions(tokens, whereConditions);
+            } else if (token.equals(Tokens.OPTIONS)){
+            	throw new MalformedSQLQuery(tokens, "OPTIONS not possible without WHERE!");
+            } else {
+            	throw new MalformedSQLQuery(tokens);
+            }
+        }
+        
+        if (tokens.hasNext()) {
+        	if (tokens.next().equals(Tokens.OPTIONS)){
+            	List<String> tmpList = new ArrayList<>();
+            	getParenthesis(tokens, tmpList);
+            	scanType = tmpList.get(0);
+            } else {
+                throw new MalformedSQLQuery(tokens);
+            }
         }
 
-        Delete delete = new Delete(tabName, whereConditions);
+        Delete delete = new Delete(tabName, whereConditions, scanType);
         bufferedQueries.add(delete);   
     }
     
@@ -433,6 +468,11 @@ public class SQLParser {
                     break;
             }
            
+        }
+        if (condition.isSet()) {
+        	conditions.add(condition);
+        } else {
+            throw new MalformedSQLQuery(tokens, "SetCondition ERROR: not set!");
         }
     }
 

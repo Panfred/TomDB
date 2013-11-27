@@ -3,7 +3,6 @@ package uzh.tomdb.db.operations.engines;
 
 
 import java.io.IOException;
-import java.util.Collection;
 
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -30,20 +29,7 @@ public class QueryExecuter {
 		
 		if (select.getTabNames() != null) {
 			
-			JoinsHandler jHandler = new JoinsHandler(select);
-			Collection<Select> selects = jHandler.getSelects();
-			switch (select.getScanType()) {
-			case "tablescan":
-				for (Select select: selects) {
-					new TableScan(select, jHandler).start();
-				}
-				break;
-			case "indexscan":
-				for (Select select: selects) {
-					new IndexScan(select, jHandler).startIndex();
-				}
-				break;
-			}
+			new JoinsHandler(select).start();
 			
 		} else {
 			

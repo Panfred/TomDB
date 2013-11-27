@@ -15,7 +15,7 @@ public class UniqueIndexHandler extends IndexHandler{
 	}
 	
 	@Override
-	public void put(int rowId, int indexedVal, int upperBound, String column) throws ClassNotFoundException, IOException {
+	public boolean put(int rowId, int indexedVal, int upperBound, String column) throws ClassNotFoundException, IOException {
 		
 		IndexedValue iv = null;
 		
@@ -24,8 +24,10 @@ public class UniqueIndexHandler extends IndexHandler{
 		if (iv == null) {
 			iv = new IndexedValue(indexedVal, rowId);
 			putDST(iv, upperBound, column);
+			return true;
 		} else {
 			logger.error("The value was already indexed!!");
+			return false;
 		}
 		
 	}

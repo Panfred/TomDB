@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.tomp2p.futures.BaseFutureAdapter;
 import net.tomp2p.futures.FutureDHT;
@@ -32,9 +33,8 @@ public class IndexHandler {
 		this.peer = peer;
 	}
 	
-	public void put(int rowId, int indexedVal, int upperBound, String column) throws IOException, ClassNotFoundException {
+	public boolean put(int rowId, int indexedVal, int upperBound, String column) throws IOException, ClassNotFoundException {
 		IndexedValue iv = null;
-		
 		iv = checkIndex(indexedVal, upperBound, column);
 		
 		if (iv == null) {
@@ -42,8 +42,25 @@ public class IndexHandler {
 		} else {
 			iv.addRowId(rowId);
 		}
-		
 		putDST(iv, upperBound, column);
+		return true;
+	}
+	
+	public void remove(int rowId, int indexedVal, int upperBound, String column) throws ClassNotFoundException, IOException {
+		IndexedValue iv = null;
+		
+		iv = checkIndex(indexedVal, upperBound, column);
+		
+		List<Integer> rowIds = iv.getRowIds();
+		
+		if (rowIds.size() > 1) {
+			rowIds.remove(rowId);
+			putDST(iv, upperBound, column);
+		} else if (rowIds.size() == 1) {
+			removeDST(iv, upperBound, column);
+		} else {
+			logger.error("Indexed value not found in the index!");
+		}
 	}
 
 	protected IndexedValue checkIndex(int indexedVal, int upperBound, String column) throws ClassNotFoundException, IOException {
@@ -83,11 +100,43 @@ public class IndexHandler {
 	 
 	}
 	
+	private void removeDST(IndexedValue iv, int upperBound, String column) {
+		DSTBlock block = new DSTBlock(1, upperBound, column);
+		  
+		for (int i = 0; i <= Utils.getDSTHeight(upperBound); i++) {
+			FutureDHT future = peer.remove(block.getHash()).setContentKey(new Number160(iv.getIndexedVal())).start();
+			future.addListener(new BaseFutureAdapter<FutureDHT>() {
+	              @Override
+	              public void operationComplete(FutureDHT future) throws Exception {
+	                  if (future.isSuccess()) {
+	                      logger.debug("REMOVE DST: Remove succeed!");
+	                  } else {
+	                      //add exception?
+	                      logger.debug("REMOVE DST: Remove failed!");
+	                  }
+	              }
+	          });
+	      block = block.split(iv.getIndexedVal());
+		}
+		
+	}
+	
 	public Map<Integer, IndexedValue> getDSTblocking(int from, int to, int upperBound, String column) throws ClassNotFoundException, IOException {
       List<DSTBlock> rowsBlocks = Utils.splitRange(from, to, upperBound, column);
       Map<Integer, IndexedValue> results = new HashMap<>();
+      AtomicInteger counter = new AtomicInteger(0);
       
-      getDSTblocking(rowsBlocks, upperBound, new HashSet<String>(), results); 
+      getDST(rowsBlocks, upperBound, new HashSet<String>(), results, counter, this); 
+      
+      while (counter.get() > 0) {
+    	    synchronized (this) { 
+    	        try {
+					this.wait();
+				} catch (InterruptedException e) {
+					logger.error("Wait interrupted", e);
+				}
+    	    }
+      }
       
       return results;
   }
@@ -105,48 +154,69 @@ public class IndexHandler {
    * @throws ClassNotFoundException .
    * @throws IOException .
    */
-	private void getDSTblocking(List<DSTBlock> blocks, final int upperBound, final Set<String> already, final Map<Integer, IndexedValue> results) throws ClassNotFoundException, IOException {
+	private void getDST(List<DSTBlock> blocks, final int upperBound,
+			final Set<String> already,
+			final Map<Integer, IndexedValue> results,
+			final AtomicInteger counter, final IndexHandler ih)
+			throws ClassNotFoundException, IOException {
 
-	      for (final DSTBlock block: blocks) {
-	    	  //logger.debug("GET INTERVAL: "+interval.toString());
-	          
-	    	  // we don't query the same thing again
-	          if (already.contains(block.toString())) {
-	              continue;
-	          }
+		for (final DSTBlock block : blocks) {
+			// logger.debug("GET INTERVAL: "+interval.toString());
 
-	          Number160 key = block.getHash();
-	          already.add(block.toString());
+			// we don't query the same thing again
+			if (already.contains(block.toString())) {
+				continue;
+			}
 
-	          // get the interval
-	          FutureDHT future = peer.get(key).setAll().start();
-	          future.awaitUninterruptibly();
-	          
-              if (future.isSuccess()) {
-                  logger.debug("GET DST: Get succeed!");
-                  
-                  Map<Number160, Data> map = future.getDataMap();
-                  Set<Number160> keys = map.keySet();
-                  
-                  for (Number160 entry: keys) {
-                      IndexedValue iv = (IndexedValue) map.get(entry).getObject();
-                      if (!results.containsKey(iv.getIndexedVal())) {
-                          results.put(iv.getIndexedVal(), iv);
-                      }
-                  }
-                  
-                  //IF block is full, we need to get children
-                  if (map.size() == upperBound) {
-                      logger.debug(block + " FULL!");
-                      getDSTblocking(block.split(), upperBound, already, results);
-                  }
-                  
-              } else {
-                  //add exception?
-                  logger.debug("GET DST: Get failed!");
-              }
-          }
-	                    
+			Number160 key = block.getHash();
+			already.add(block.toString());
+
+			// get the interval
+			FutureDHT future = peer.get(key).setAll().start();
+			counter.incrementAndGet();
+			future.addListener(new BaseFutureAdapter<FutureDHT>() {
+				@Override
+				public void operationComplete(FutureDHT future) throws Exception {
+					if (future.isSuccess()) {
+						logger.debug("GET DST: Get succeed!");
+
+						Map<Number160, Data> map = future.getDataMap();
+						Set<Number160> keys = map.keySet();
+
+						for (Number160 entry : keys) {
+							IndexedValue iv = (IndexedValue) map.get(entry)
+									.getObject();
+							if (!results.containsKey(iv.getIndexedVal())) {
+								results.put(iv.getIndexedVal(), iv);
+							}
+						}
+
+						// IF block is full, we need to get children
+						if (map.size() == upperBound) {
+							logger.debug(block + " FULL!");
+							getDST(block.split(), upperBound, already, results,
+									counter, ih);
+						}
+
+						if (counter.decrementAndGet() == 0) {
+							synchronized (ih) {
+								ih.notify();
+							}
+						}
+
+					} else {
+						// add exception?
+						logger.debug("GET DST: Get failed!");
+						if (counter.decrementAndGet() == 0) {
+							synchronized (ih) {
+								ih.notify();
+							}
+						}
+					}
+				}
+			});
+		}
+
 	}
 
 }

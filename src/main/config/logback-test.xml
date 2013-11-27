@@ -32,8 +32,8 @@
 --> 
 
   <logger name="uzh.tomdb" level="DEBUG"/>
-  <logger name="net.tomp2p" level="OFF"/>
-  <logger name="net.tomp2p.rpc.StorageRPC" level="OFF"/>
+  <logger name="net.tomp2p" level="ERROR"/>
+  <!-- <logger name="net.tomp2p.rpc.StorageRPC" level="OFF"/> -->
   <!-- <logger name="net.tomp2p.p2p.DistributedRouting" level="DEBUG"/> -->
   
   <root level="TRACE">

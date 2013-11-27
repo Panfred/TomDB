@@ -1,6 +1,7 @@
 package uzh.tomdb.db;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,8 +12,8 @@ public class TableIndexes implements Serializable{
 	private String tabName;
 	private int DSTRange;
 	private String primaryKey;
-    private List<String> indexes;
-    private List<String> uniqueIndexes;
+    private List<String> indexes = new ArrayList<>();
+    private List<String> uniqueIndexes = new ArrayList<>();
     private Map<String, IndexMeta> indexMetas = new HashMap<>();
     
     public TableIndexes (String tabName, int DSTRange) {

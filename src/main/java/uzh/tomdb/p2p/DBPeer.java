@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.SortedMap;
 
 import net.tomp2p.futures.BaseFutureAdapter;
@@ -43,35 +44,33 @@ public class DBPeer {
     private static long timeRows;
     private static long timeIndexes;
     
-    public DBPeer(int id) throws IOException {
-    	peer = new PeerMaker(Number160.createHash(id)).setPorts(4000 + (id % 1000)).makeAndListen();
+    public DBPeer(Random rnd) throws IOException {
+    	peer = new PeerMaker(new Number160(rnd)).setPorts(4000 + (rnd.nextInt() % 1000)).makeAndListen();
         FutureBootstrap fb = peer.bootstrap().setBroadcast().setPorts(4000).start();
         fb.awaitUninterruptibly();
         if(fb.isFailed()) {
             logger.debug("Bootstrap failed, becoming bootstrap peer...");
-            peer = new PeerMaker(new Number160(id)).setPorts(4000).makeAndListen();
+            peer = new PeerMaker(new Number160(rnd)).setPorts(4000).makeAndListen();
         } else {
             logger.debug("Bootstrap successfull!");
-            //if (fb.getBootstrapTo() != null) {
-            //    peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
-            //}
+            if (fb.getBootstrapTo() != null) {
+                peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
+            }
         }
     }
     
-    public DBPeer(int id, Peer[] peers) throws IOException {
+    public DBPeer(Random rnd, Peer[] peers) throws IOException {
         localPeers = peers;
-    	peer = new PeerMaker(Number160.createHash(id)).setPorts(4000 + (id % 1000)).makeAndListen();
-        FutureBootstrap fb =peer.bootstrap().setPeerAddress(localPeers[0].getPeerAddress()).start();
-//        FutureBootstrap fb = peer.bootstrap().setBroadcast().setPorts(4000).start();
+    	peer = new PeerMaker(new Number160(rnd)).setPorts(4000 + (rnd.nextInt() % 1000)).makeAndListen();
+        FutureBootstrap fb = peer.bootstrap().setPeerAddress(localPeers[0].getPeerAddress()).start();
         fb.awaitUninterruptibly();
         if(fb.isFailed()) {
-            logger.debug("Bootstrap failed, becoming bootstrap peer...");
-            peer = new PeerMaker(new Number160(id)).setPorts(4000).makeAndListen();
+            logger.debug("Bootstrap failed!");
         } else {
             logger.debug("Bootstrap successfull!");
-            //if (fb.getBootstrapTo() != null) {
-            //    peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
-            //}
+            if (fb.getBootstrapTo() != null) {
+                peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
+            }
         }
     }
 
@@ -141,21 +140,6 @@ public class DBPeer {
 			// add exception?
 			logger.debug("Failure fetching Table COLUMNS!");
 		}
-        
-//        future.addListener(new BaseFutureAdapter<FutureDHT>() {
-//
-//            @Override
-//            public void operationComplete(FutureDHT future) throws Exception {
-//                if(future.isSuccess()) {
-//                    tabColumns = future.getDataMap();
-//                    logger.debug("Success fetching Table COLUMNS");
-//                } else {
-//                    //add exception?
-//                    logger.debug("Failure fetching Table COLUMNS!");
-//                }
-//            }
-//            
-//        });
     }
     
     /**
@@ -168,38 +152,21 @@ public class DBPeer {
             tabRows = future.getDataMap();
             timeRows = System.currentTimeMillis() + 60000; // 1 min
             logger.debug("Success fetching Table ROWS");
+            logger.debug("FUTURE ROUTE fetch: " + future.getFutureRouting().getRoutingPath());
             if(!tabRows.isEmpty()) {
             	try {
             		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
             		while(it.hasNext()) {
-            			System.out.println("FETCH: "+((TableRows) it.next().getValue().getObject()).toString());
+            			logger.debug("Rows Metadata: "+((TableRows) it.next().getValue().getObject()).toString());
             		}
         		} catch (ClassNotFoundException | IOException e) {
-        			// TODO Auto-generated catch block
-        			e.printStackTrace();
+        			logger.error("Data error", e);
         		}
             }
         } else {
             //add exception?
             logger.debug("Failure fetching Table ROWS!");
         }
-        
-        
-//        future.addListener(new BaseFutureAdapter<FutureDHT>() {
-//
-//            @Override
-//            public void operationComplete(FutureDHT future) throws Exception {
-//                if(future.isSuccess()) {
-//                    tabRows = future.getDataMap();
-//                    timeRows = System.currentTimeMillis() + 60000; // 1 min
-//                    logger.debug("Success fetching Table ROWS");
-//                } else {
-//                    //add exception?
-//                    logger.debug("Failure fetching Table ROWS!");
-//                }
-//            }
-//            
-//        });
     }
     
     /**
@@ -219,25 +186,6 @@ public class DBPeer {
             //add exception?
             logger.debug("Failure fetching Table INDEXES!");
         }
-        
-//        future.addListener(new BaseFutureAdapter<FutureDHT>() {
-//
-//            @Override
-//            public void operationComplete(FutureDHT future) throws Exception {
-//                if(future.isSuccess()) {
-//                    tabIndexes = future.getDataMap();
-//                    timeIndexes = System.currentTimeMillis() + 60000; // 1 min
-//                    if (!setupStorage) {
-//                    	doSetupStorage();
-//                    }
-//                    logger.debug("Success fetching Table INDEXES");
-//                } else {
-//                    //add exception?
-//                    logger.debug("Failure fetching Table INDEXES!");
-//                }
-//            }
-//            
-//        });
     }
     
     public static void updateTableColumns() {
@@ -255,8 +203,7 @@ public class DBPeer {
             }
         });
         
-        //TO-DO BROADCAST!!! TABLE COLUMNS METADATA are updated only with CREATE TABLE, a client must EXPLICIT call FETCH METADATA to see a new table
-        
+        //TODO BROADCAST!!! TABLE COLUMNS METADATA are updated only with CREATE TABLE, a client must EXPLICIT call FETCH METADATA to see a new table     
     }
     
     public static void updateTableRows() {
@@ -268,11 +215,10 @@ public class DBPeer {
         	try {
         		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
         		while(it.hasNext()) {
-        			System.out.println("UPDATE: "+((TableRows) it.next().getValue().getObject()).toString());
+        			logger.debug("Rows Metadata before update: "+((TableRows) it.next().getValue().getObject()).toString());
         		}
     		} catch (ClassNotFoundException | IOException e) {
-    			// TODO Auto-generated catch block
-    			e.printStackTrace();
+    			logger.error("Data error", e);
     		}
         }
         FutureDHT future = peer.put(Number160.createHash("TableRowsMetaData")).setDataMap(tabRows).start();
@@ -281,6 +227,7 @@ public class DBPeer {
             public void operationComplete(FutureDHT future) throws Exception {
                 if (future.isSuccess()) {
                     logger.debug("Success updateing ROWS metadata!");
+                    logger.debug("FUTURE ROUTE Update: " + future.getFutureRouting().getRoutingPath());
                 } else {
                     //add exception?
                     logger.debug("Failed updateing ROWS metadata!");

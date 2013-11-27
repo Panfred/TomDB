@@ -35,17 +35,16 @@ import uzh.tomdb.parser.Tokens;
 public class IndexScan {
 	private final Logger logger = LoggerFactory.getLogger(IndexScan.class);  
 	private Select select;
-	private Handler handler;
+	private ConditionsHandler condHandler;
 	private Set<String> elaboratedBlocks = new HashSet<>();
 	
-	public IndexScan(Select select, Handler handler) {
+	public IndexScan(Select select, ConditionsHandler handler) {
 		this.select = select;
-		this.handler = handler;
+		this.condHandler = handler;
 	}
 	
 	public void start() throws MalformedSQLQuery, ClassNotFoundException, IOException {
 		boolean indexExistence = false;
-		ConditionsHandler condHandler = (ConditionsHandler) handler;
 
 		for (Conditions condition : condHandler.getAndCond()) {
 
@@ -85,10 +84,6 @@ public class IndexScan {
 		}
 	}
 
-	public void startIndex() {
-		
-	}
-	
 	private void indexScan(Conditions condition) throws ClassNotFoundException, IOException {
 		WhereCondition cond = (WhereCondition) condition;
 		int from = 0;
@@ -144,17 +139,17 @@ public class IndexScan {
 		for (Block block : blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
-			handler.addToFutureManager(future.toString());
+			condHandler.addToFutureManager(future.toString());
 			future.addListener(new BaseFutureAdapter<FutureDHT>() {
 				@Override
 				public void operationComplete(FutureDHT future) throws Exception {
 					if (future.isSuccess()) {
 						logger.debug("GET from Table: Get succeed!");
-						handler.filterRows(future.getDataMap(), future.toString());
+						condHandler.filterRows(future.getDataMap(), future.toString());
 					} else {
 						// add exception?
 						logger.debug("GET from Table: Get failed!");
-						handler.removeFromFutureManager(future.toString());
+						condHandler.removeFromFutureManager(future.toString());
 					}
 				}	
 			});
@@ -188,7 +183,7 @@ public class IndexScan {
 
 	          // get the interval
 	          FutureDHT future = select.getPeer().get(key).setAll().start();
-	          handler.addToFutureManager(future.toString());
+	          condHandler.addToFutureManager(future.toString());
 	          future.addListener(new BaseFutureAdapter<FutureDHT>() {
 	              @Override
 	              public void operationComplete(FutureDHT future) throws Exception {
@@ -197,7 +192,7 @@ public class IndexScan {
 	                      
 	                      Map<Number160, Data> map = future.getDataMap();
 	                      
-	                      handler.removeFromFutureManager(future.toString());
+	                      condHandler.removeFromFutureManager(future.toString());
 	                      filterIndexScan(map);
 	                      
 	                      //IF block is full, we need to get children
@@ -208,7 +203,7 @@ public class IndexScan {
 	                      
 	                  } else {
 	                      //add exception?
-	                	  handler.removeFromFutureManager(future.toString());
+	                	  condHandler.removeFromFutureManager(future.toString());
 	                      logger.debug("GET DST: Get failed!");
 	                  }
 	              }

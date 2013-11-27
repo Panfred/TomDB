@@ -5,7 +5,7 @@ import uzh.tomdb.api.Statement;
 import uzh.tomdb.main.TomDB;
 
 
-public class CreateTest {
+public class UpdateTest {
     
     public static void main(String[] args) {
         test();
@@ -13,19 +13,16 @@ public class CreateTest {
     
     public static void test() {
       
-                    TomDB.createLocalPeers(100);
                     Connection con = TomDB.getConnection();
                     Statement stmt = con.createStatement();
                     
                     long now = System.currentTimeMillis();
 
-                    stmt.execute("CREATE TABLE tabone (id, nameone, address) OPTIONS (uniqueindex:id, blocksize:2, storage:fullblocks)");
-                    
-//                    stmt.execute("CREATE TABLE tabtwo (idtwo, nametwo, salary) OPTIONS (uniqueindex:idtwo, blocksize:20, storage:insertionorder)").start();
+                    stmt.execute("UPDATE tabone SET address = nuovo WHERE id > 5 OPTIONS (tablescan)");
                     
                     stmt.start();
                     
-                    System.out.println("CREATE TABLE done in " + (System.currentTimeMillis() - now));
+                    System.out.println("UPDATE done in " + (System.currentTimeMillis() - now));
 
     }
 

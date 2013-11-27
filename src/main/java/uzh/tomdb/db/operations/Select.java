@@ -16,6 +16,7 @@ import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.db.operations.engines.QueryExecuter;
 import uzh.tomdb.db.operations.helpers.Row;
+import uzh.tomdb.db.operations.helpers.TempResults;
 import uzh.tomdb.db.operations.helpers.WhereCondition;
 import uzh.tomdb.p2p.DBPeer;
 import uzh.tomdb.parser.MalformedSQLQuery;
@@ -32,6 +33,7 @@ public class Select extends Operation implements Operations {
 	private ResultSet resultSet;
 	private String scanType;
 	private List<String> tabNames;
+	private TempResults tmpRes;
 
 	public Select(boolean allColumns, String tabName, List<String> columns, List<WhereCondition> conditions, String scanType) {
 		super();
@@ -59,6 +61,20 @@ public class Select extends Operation implements Operations {
 		super.ti = ti;
 		super.tc = tc;
 	}
+	
+	public Select(String tabName, TableRows tr, TableIndexes ti, TableColumns tc, List<WhereCondition> conditions, String scanType, TempResults tmpRes) {
+		super();
+		super.tabName = tabName;
+		super.tabKey = Number160.createHash(tabName);
+		this.allColumns = true;
+		this.columns = null;
+		this.whereConditions = conditions;
+		this.scanType = scanType;
+		this.tmpRes = tmpRes;
+		super.tr = tr;
+		super.ti = ti;
+		super.tc = tc;
+	}
 
 	@Override
 	public void init() {
@@ -66,7 +82,10 @@ public class Select extends Operation implements Operations {
 			if (getTabNames() != null) {
 				resultSet = new ResultSet();
 				new QueryExecuter(this);
+			} else if (tmpRes != null){
+				new QueryExecuter(this);
 			} else {
+			
 				Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
 				Map<Number160, Data> tabRows = DBPeer.getTabRows();
 				Map<Number160, Data> tabIndexes = DBPeer.getTabIndexes();
@@ -87,11 +106,17 @@ public class Select extends Operation implements Operations {
 	}
 	
 	public void addToResultSet(Row row) {
-		resultSet.addRow(row);
+		if (tmpRes != null) {
+			tmpRes.addRow(row);
+		} else {
+			resultSet.addRow(row);
+		}
 	}
 	
 	public void setResultSetColumns(Map<String, Integer> col) {
-		resultSet.setColumns(col);
+		if (resultSet != null) {
+			resultSet.setColumns(col);
+		}	
 	}
 
 	public ResultSet getResultSet() {

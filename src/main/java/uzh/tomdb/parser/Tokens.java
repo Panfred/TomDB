@@ -24,7 +24,7 @@ public class Tokens {
     public static final String INTO = "INTO";
     public static final String VALUES = "VALUES";
     
-    //Update:
+//    //Update:
     public static final String UPDATE = "UPDATE";
     public static final String SET = "SET";
     

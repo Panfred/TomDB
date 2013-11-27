@@ -30,14 +30,22 @@ public class InsertTest {
 //                    stmt.execute("INSERT INTO Salary VALUES (8, 'Sem', 3500)");
 //                    stmt.start();
                     
-//                    	for (int i = 0; i < 100; i++) {
-//                        	stmt.execute("INSERT INTO tabone VALUES ("+i+", name"+i+", addressof)");
-//                        }
+                    	for (int i = 1; i < 10; i++) {
+                        	stmt.execute("INSERT INTO tabone VALUES ("+i+", name"+i+", addressof)");
+                        }
                     	
-                    	 for (int i = 0; i < 1000; i++) {
-                         	stmt.execute("INSERT INTO tabtwo VALUES (name"+i+", "+i*100+")");
-                         }
-                    	 
+//                    	 for (int i = 0; i < 100; i++) {
+//                         	stmt.execute("INSERT INTO tabtwo VALUES ("+i+", name"+i+", "+i*100+")");
+//                         }
+//                    	 
+//                    	 for (int i = 101; i < 200; i++) {
+//                         	stmt.execute("INSERT INTO tabone VALUES ("+i+", name"+i+200+", addressof)");
+//                         }
+//                     	
+//                     	 for (int i = 101; i < 200; i++) {
+//                          	stmt.execute("INSERT INTO tabtwo VALUES ("+i+200+", name"+i+", "+i*100+")");
+//                          }
+//                    	 
                     	 
                      	 stmt.start();
                     
