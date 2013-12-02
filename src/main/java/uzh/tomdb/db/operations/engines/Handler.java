@@ -7,6 +7,12 @@ import uzh.tomdb.parser.MalformedSQLQuery;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
 
+/**
+ * 
+ * Interface for the handlers, mainly used to handle asynchronous DHT operations.
+ * 
+ * @author Francesco Luminati
+ */
 public interface Handler {
 	public void addToFutureManager(String future);
 	public void removeFromFutureManager(String future);

@@ -24,24 +24,39 @@ import uzh.tomdb.db.operations.helpers.WhereCondition;
 import uzh.tomdb.p2p.DBPeer;
 
 /**
- *
- * @author Francesco Luminati
- */
+*
+* UPDATE SQL operation.
+*
+* @author Francesco Luminati
+*/
 public class Update extends Operation implements Operations, TempResults{
 	private final Logger logger = LoggerFactory.getLogger(Update.class);
-    private String tabName;
+	/**
+	 * Set conditions to update the values of the given columns.
+	 */
     private List<SetCondition> setConditions;
+    /**
+     * Where conditions for the SELECT operation.
+     */
     private List<WhereCondition> whereConditions;
+    /**
+     * Scan type (tablescan/indexscan) defined in the OPTIONS statement.
+     */
     private String scanType;
 
     public Update(String tabName, List<SetCondition> setConditions, List<WhereCondition> whereConditions, String scanType) {
-        this.tabName = tabName;
-        this.tabKey = Number160.createHash(tabName);
+    	super();
+        super.tabName = tabName;
+        super.tabKey = Number160.createHash(tabName);
         this.setConditions = setConditions;
         this.whereConditions = whereConditions;
         this.scanType = scanType;
     }
     
+    /**
+     * Initializes the table MetaData and execute a SELECT to identify the rows IDs that are going to be updated.
+     * The SELECT operation gets this object and pushes the rows back to this object.
+     */
     @Override
     public void init() {
     	Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
@@ -60,6 +75,11 @@ public class Update extends Operation implements Operations, TempResults{
     	new Select(tabName, tr, ti, tc, whereConditions, scanType, this).init();
     }
 
+    /**
+     * Gets the rows from the SELECT operation.
+     * 
+     * @param row
+     */
     @Override
 	public void addRow(Row row) {
     	if (row.getRowID() > 0) {
@@ -69,6 +89,11 @@ public class Update extends Operation implements Operations, TempResults{
 		}		
 	}
     
+    /**
+     * Set the new values for the given columns and put the row in the table DTH.
+     * 
+     * @param row
+     */
     private void executeUpdate(Row row) {
     	
     	for (SetCondition cond: setConditions) {

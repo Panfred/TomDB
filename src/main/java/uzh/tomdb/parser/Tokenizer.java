@@ -8,11 +8,20 @@ import java.util.Locale;
 
 /**
  *
+ * Helper class to divide a String in single tokens.
+ * Implements the ListIterator interface.
+ *
  * @author Francesco Luminati
  */
 public class Tokenizer implements ListIterator<String>{
     private int index = -1;
+    /**
+     * The string to tokenize.
+     */
     private String sql;
+    /**
+     * The list of tokens derived form the string.
+     */
     private List<String> tokens = new ArrayList<>();
     private ListIterator<String> iterator;
     
@@ -50,7 +59,7 @@ public class Tokenizer implements ListIterator<String>{
     }
    
     public String getPrevious(int x) {      
-        return tokens.get(index-x); //gestire problemi
+        return tokens.get(index-x);
     }
 
     @Override
@@ -86,6 +95,10 @@ public class Tokenizer implements ListIterator<String>{
         return sql;
     }
     
+    /**
+     * The tokenization is done here using regex delimiter and the String.slit(delimiter) function.
+     * The switch decide if it is a token or a string.
+     */
     private void init() {
         String delimiters = " |"; //space
         delimiters += "((?<=,)|(?=,))|"; //comma
@@ -185,6 +198,6 @@ public class Tokenizer implements ListIterator<String>{
                     tokens.add(spl[i]);
             }
         }
-//        System.out.println(tokens.toString());
+
     }
 }

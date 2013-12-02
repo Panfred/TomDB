@@ -13,11 +13,15 @@ import uzh.tomdb.parser.MalformedSQLQuery;
 
 /**
  * 
+ * Executes the SELECT query choosing between Join, TableScan or IndexScan.
+ * 
  * @author Francesco Luminati
- *
  */
 public class QueryExecuter {
-//	private final Logger logger = LoggerFactory.getLogger(QueryExecuter.class);  
+//	private final Logger logger = LoggerFactory.getLogger(QueryExecuter.class); 
+	/**
+	 * The SELECT query on which to execute the scan on.
+	 */
 	private Select select;
 	
 	public QueryExecuter(Select select) throws MalformedSQLQuery, ClassNotFoundException, IOException {

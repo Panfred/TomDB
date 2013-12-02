@@ -25,15 +25,21 @@ import uzh.tomdb.db.operations.helpers.Utils;
 import uzh.tomdb.p2p.DBPeer;
 import uzh.tomdb.parser.MalformedSQLQuery;
 
-
-
 /**
- *
- * @author Francesco Luminati
- */
+*
+* INSERT SQL operation.
+*
+* @author Francesco Luminati
+*/
 public class Insert extends Operation implements Operations{
     private final Logger logger = LoggerFactory.getLogger(Insert.class);
+    /**
+     * List of columns to insert to.
+     */
     private List<String> columns;
+    /**
+     * The values that are inserted in the given columns.
+     */
     private List<String> values;
 	private FreeBlocksHandler freeBlocksHandler;
     private List<String> indexes;
@@ -54,6 +60,13 @@ public class Insert extends Operation implements Operations{
         this.values = values;
     }
     
+    /**
+     * Gets the freeblocks handler and the table metadata from the OperationEngine.
+     * Do the insertion for insertionorder or fullblocks methods.
+     * @param freeBlocksHandler
+     * @param tr
+     * @param ti
+     */
 	public void init(FreeBlocksHandler freeBlocksHandler, TableRows tr, TableIndexes ti) {
 		this.freeBlocksHandler = freeBlocksHandler;
 		Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
@@ -64,7 +77,7 @@ public class Insert extends Operation implements Operations{
 		try {
 			tc = (TableColumns) tabColumns.get(tabKey).getObject();
 			indexes = ti.getIndexes();
-			uniqueIndexes = ti.getUniqueIndexes();
+			uniqueIndexes = ti.getUnivocalIndexes();
 
 			switch (tr.getStorage()) {
 				case "insertionorder":
@@ -82,7 +95,10 @@ public class Insert extends Operation implements Operations{
 		}
 
 	}
-
+	
+	/**
+	 * Insert the row always in the last table block.
+	 */
 	private void putInsertionOrder() throws IOException, MalformedSQLQuery, ClassNotFoundException {
 
     	int rowId = tr.incrementAndGetRowsNum();
@@ -110,6 +126,9 @@ public class Insert extends Operation implements Operations{
         
     }
     
+	/**
+	 * Insert the row in a free block if possible, otherwise does a putInsertionOrder operation.
+	 */
     private void putFullBlocks() throws IOException, MalformedSQLQuery, ClassNotFoundException {
     	Map<Number160, Data> freeBlocks = null;
     	
@@ -156,6 +175,11 @@ public class Insert extends Operation implements Operations{
     	}
     }
     
+    /**
+     * Insert the value in the indexes, using the operations in IndexHandler class.
+     * 
+     * @param row
+     */
     private boolean putIndex(Row row) throws MalformedSQLQuery, IOException, ClassNotFoundException {
 		boolean success = false;
     	if (indexes.size() > 0) {
@@ -185,7 +209,13 @@ public class Insert extends Operation implements Operations{
 		}
 		return success;
 	}
-
+    
+    /**
+     * Generate the new Row.
+     * 
+     * @param rowId
+     * @return row
+     */
     private Row getRow(int rowId) throws MalformedSQLQuery {
         Row row = null;
         if (columns == null) {

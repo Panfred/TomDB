@@ -6,15 +6,20 @@ import uzh.tomdb.parser.Tokens;
 
 /**
  *
+ *	Helper class for the WHERE conditions.
+ *
  * @author Francesco Luminati
  */
 public class WhereCondition implements Conditions{
+	
     private String column = "";
     private String operator = "";
     private String value = "";
+    /**
+     * For AND and OR operators.
+     */
     private String boolOperator = "";
 
-    
     public String getColumn() {
         return column;
     }
@@ -46,9 +51,10 @@ public class WhereCondition implements Conditions{
     public void setBoolOperator(String bool) {
     	this.boolOperator = bool;
     }
-    
-    public boolean isJoinCondition() throws MalformedSQLQuery {
-    	
+    /**
+     * Join conditions have the form: tablename.columnname = tablename2.columnname2
+     */
+    public boolean isJoinCondition() throws MalformedSQLQuery {  	
     	if(column.contains(".")) {
     		if (operator.equals(Tokens.EQUAL) && value.contains(".")) {
     			return true;

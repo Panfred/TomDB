@@ -8,16 +8,28 @@ import java.util.Map;
 
 /**
  *
+ * Helper class for the Row.
+ *
  * @author Francesco Luminati
  */
 public class Row implements Serializable{
-    /**
-	 * 
-	 */
+
 	private static final long serialVersionUID = 1L;
+	/**
+	 * To which table belong this row.
+	 */
 	private final String tabName;
+	/**
+	 * RowID
+	 */
 	private final int id;
+	/**
+	 * Column values with the same order as the columns map.
+	 */
     private List<String> row;
+    /**
+     * Column names and column ids to retrieve the value in the row list.
+     */
     private Map<String, Integer> columns;
     
     public Row(int id) {
@@ -77,9 +89,9 @@ public class Row implements Serializable{
     
     @Override
     public String toString() {
-        String temp = "RowId:"+ id + ":::"; 
-        for(int i = 0; i < row.size(); i++) {
-            temp += "Col" + (i+1) + ":" + row.get(i) + ";";
+        String temp = "Row:"+ id + "::"; 
+        for (Map.Entry<String, Integer> col: columns.entrySet()) {
+            temp += ":" + col.getKey() + "=" + row.get(col.getValue());
         }
         return temp;
     }

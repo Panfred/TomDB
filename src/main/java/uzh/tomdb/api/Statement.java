@@ -9,13 +9,18 @@ import uzh.tomdb.parser.SQLParser;
 
 /**
  *
- * DataBase API
+ * DataBase API (like JDBC)
  * 
  * @author Francesco Luminati
  */
 public class Statement {
     private final Logger logger = LoggerFactory.getLogger(Statement.class);
     private SQLParser parser = new SQLParser();
+    
+    /**
+     * Only used for TRACE logging of the experiments.
+     */
+    public static int experiment = 0;
     
     /**
      * Execute SQL query.
@@ -61,6 +66,25 @@ public class Statement {
     }
     
     /**
+     * Same as above for experiments
+     * 
+     * @param sql
+     * @param exp
+     * @return
+     */
+    public ResultSet executeQuery(String sql, int exp) {
+    	experiment = exp;
+        try {
+            return parser.parseQuery(sql);
+        } catch (MalformedSQLQuery e) {
+            logger.warn("SQL Query Error", e);
+        } catch (Exception e) {
+            logger.error("Statement Error", e);
+        }
+        return null;
+    }
+    
+    /**
      * Execute SQL query updating the MetaData.
      * 
      * Used for SELECT statements.
@@ -84,9 +108,18 @@ public class Statement {
     
     /**
      * Execute the buffered queries.
-     * 
      */
     public void start() {
+        parser.start();
+    }
+    
+    /**
+     * Same as above for experiments
+     * 
+     * @param exp
+     */
+    public void start(int exp) {
+    	experiment = exp;
         parser.start();
     }
     

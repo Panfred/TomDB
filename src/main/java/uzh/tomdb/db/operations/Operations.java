@@ -1,10 +1,8 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package uzh.tomdb.db.operations;
 
 /**
+ * Interface for the SQL Operations.
  *
  * @author Francesco Luminati
  */

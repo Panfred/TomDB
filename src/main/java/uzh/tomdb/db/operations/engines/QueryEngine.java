@@ -12,6 +12,7 @@ import net.tomp2p.storage.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.db.operations.CreateTable;
@@ -24,6 +25,8 @@ import uzh.tomdb.db.operations.Update;
 import uzh.tomdb.p2p.DBPeer;
 
 /**
+ *
+ * The QueryEngine is used to start the buffered query objects of CREATE TABLE, INSERT, UPDATE and DELETE queries.
  *
  * @author Francesco Luminati
  */
@@ -39,6 +42,9 @@ public class QueryEngine {
         this.bufferedQueries = bufferedQueries;
     }
     
+    /**
+     * Internal parser to separate the buffered objects in the respective query type list and start the operations.
+     */
     public void start() {
         
         for (Object obj: bufferedQueries) {
@@ -70,6 +76,7 @@ public class QueryEngine {
                     break;
             }
         }
+        
         if (inserts != null) {
             inserts();
         }
@@ -86,8 +93,8 @@ public class QueryEngine {
 
 	/**
      * Execute INSERT queries.
-     * 
-     * MetaData always actualized.
+     * Actualize MetaData before and after the execution.
+     * For better performances, the table MetaData and FreeBlocksHandler are not actualized for every queries, but just at the end or when the insert happens in a different table.
      */
     private void inserts() {
         DBPeer.fetchTableRows();
@@ -103,7 +110,7 @@ public class QueryEngine {
         TableIndexes ti = null;
 
         for (Insert ins: inserts) {
-            
+            logger.trace("INSERT BEGIN", ins.hashCode(), Statement.experiment);
             if (tabName == null) {
             	tabName = ins.getTabName();
             	tabKey = Number160.createHash(tabName);
@@ -133,12 +140,8 @@ public class QueryEngine {
             }
             
             ins.init(freeBlocks, tr, ti);
-            try {
-				Thread.sleep(10);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+
+            logger.trace("INSERT END", ins.hashCode(), Statement.experiment);
         }
         
         if (freeBlocks.isFullBlocksStorage()) {
@@ -158,6 +161,7 @@ public class QueryEngine {
     
 	/**
      * Execute CREATE TABLE queries.
+     * Actualize MetaData before and after the execution.
      */
     private void creates() {
     	DBPeer.fetchTableColumns();
@@ -172,7 +176,11 @@ public class QueryEngine {
         DBPeer.updateTableRows();
         DBPeer.updateTableIndexes();
     }
-
+    
+    /**
+     * Execute UPDATE queries.
+     * Actualize MetaData before the execution.
+     */
     private void updates() {
     	DBPeer.fetchTableRows();
         DBPeer.fetchTableIndexes();
@@ -181,7 +189,11 @@ public class QueryEngine {
         	update.init();
         }
     }
-
+    
+    /**
+     * Execute DELETE queries.
+     * Actualize MetaData before the execution.
+     */
     private void deletes() {
     	DBPeer.fetchTableRows();
         DBPeer.fetchTableIndexes();

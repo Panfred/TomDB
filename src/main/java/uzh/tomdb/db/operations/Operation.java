@@ -1,3 +1,4 @@
+
 package uzh.tomdb.db.operations;
 
 import net.tomp2p.p2p.Peer;
@@ -7,6 +8,12 @@ import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.p2p.DBPeer;
 
+/**
+ * Superclass for the SQL Operations.
+ * Contains the table name and the table MetaData.
+ * 
+ * @author Francesco Luminati
+ */
 public class Operation {
 	protected Peer peer;
 	protected String tabName;
@@ -48,6 +55,5 @@ public class Operation {
 		return "Operation [peer=" + peer + ", tabName=" + tabName + ", tabKey="
 				+ tabKey + ", tr=" + tr + ", tc=" + tc + ", ti=" + ti + "]";
 	}
-	
-	
+
 }

@@ -1,3 +1,4 @@
+
 package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
@@ -15,11 +16,20 @@ import net.tomp2p.storage.Data;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.p2p.DBPeer;
 
+/**
+ * 
+ * Handler for the Free Blocks in case of the fullblocks storage method.
+ * 
+ * @author Francesco Luminati
+ */
 public class FreeBlocksHandler {
 	private final Logger logger = LoggerFactory.getLogger(FreeBlocksHandler.class);
 	private final Peer peer = DBPeer.getPeer();
 	private String tabName;
 	private Number160 key;
+	/**
+	 * Map containing the block key and a list of free row IDs.
+	 */
 	private Map<Number160, Data> freeBlocks;
 	private int isFullBlocksStorage = 0;
 	
@@ -29,13 +39,18 @@ public class FreeBlocksHandler {
 		init();
 	}
 	
+	/**
+	 * Fetch the free blocks only if the storage is a fullblocks storage.
+	 */
 	private void init() {
 		if (isFullBlocksStorage()) {
 			fetch();
 		}
 	}
 	
-	//Blocking
+	/**
+	 * Get the free blocks from the DHT for the given table.
+	 */
 	private void fetch() {
 			FutureDHT future = peer.get(key).setAll().start();
 			future.awaitUninterruptibly();
@@ -48,7 +63,10 @@ public class FreeBlocksHandler {
                 logger.debug("FREEBLOCKS: Get failed!");
             }
 	}
-
+	
+	/**
+	 * Update the free blocks on the DHT for the given table.
+	 */
 	public void update() {
 		if(isFullBlocksStorage() && freeBlocks.size() > 0) { 
 			FutureDHT future = peer.put(key).setDataMap(freeBlocks).start();
@@ -66,7 +84,9 @@ public class FreeBlocksHandler {
 		}
 	}
 
-
+	/**
+	 * Check if the table was set as fullblocks storage.
+	 */
 	public boolean isFullBlocksStorage() {
 		if (isFullBlocksStorage == 0) {
 			try {

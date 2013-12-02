@@ -3,6 +3,8 @@ package uzh.tomdb.parser;
 
 /**
  *
+ * Tokens about SQL language and syntax.
+ *
  * @author Francesco Luminati
  */
 public class Tokens {
@@ -24,7 +26,7 @@ public class Tokens {
     public static final String INTO = "INTO";
     public static final String VALUES = "VALUES";
     
-//    //Update:
+    //Update:
     public static final String UPDATE = "UPDATE";
     public static final String SET = "SET";
     
@@ -35,7 +37,7 @@ public class Tokens {
     public static final String FETCH = "FETCH";
     public static final String METADATA = "METADATA";
     
-    //Sintax:
+    //Syntax:
     public static final String ASTERISK = "ASTERISK";
     public static final String QUOTE = "QUOTE";
     public static final String POPEN = "POPEN";

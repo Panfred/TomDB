@@ -26,29 +26,41 @@ import uzh.tomdb.db.operations.helpers.WhereCondition;
 import uzh.tomdb.p2p.DBPeer;
 
 /**
- *
- * @author Francesco Luminati
- */
+*
+* DELETE SQL operation.
+*
+* @author Francesco Luminati
+*/
 public class Delete extends Operation implements Operations, TempResults{
 	private final Logger logger = LoggerFactory.getLogger(Delete.class);
+	/**
+	 * Where conditions for the SELECT operation.
+	 */
     private List<WhereCondition> whereConditions;
+    /**
+     * Scan type (tablescan/indexscan) defined in the OPTIONS statement.
+     */
     private String scanType;
     private FreeBlocksHandler freeBlocksHandler;
     private Map<Number160, Data> freeBlocks;
     private IndexHandler ih;
     private Data data;
     
-    
     public Delete(String tabName, List<WhereCondition> whereOperations, String scanType) {
         super();
     	super.tabName = tabName;
+    	super.tabKey = Number160.createHash(tabName);
     	this.scanType = scanType;
         this.whereConditions = whereOperations;
-        super.tabKey = Number160.createHash(tabName);
+        
         freeBlocksHandler = new FreeBlocksHandler(tabName);
         ih = new IndexHandler(peer);
     }
-
+    
+    /**
+     * Initializes the table MetaData, creates an empty Row and execute a SELECT to identify the rows IDs that are going to be deleted.
+     * The SELECT operation gets this object and pushes the rows back to this object.
+     */
     @Override
     public void init() {
     	Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
@@ -72,6 +84,12 @@ public class Delete extends Operation implements Operations, TempResults{
 		
     }
     
+    /**
+     * Gets the rows from the SELECT operation. 
+     * When the SELECT is done, the free blocks entry in the DHT is updated.
+     * 
+     * @param row
+     */
     @Override
 	public void addRow(Row row) {
 		if (row.getRowID() >= 0) {
@@ -82,6 +100,11 @@ public class Delete extends Operation implements Operations, TempResults{
 		}
 	}
 	
+    /**
+     * Puts an empty row in the DHT table for the given row ID and executes the update for free blocks and indexes.
+     * 
+     * @param row
+     */
 	private void executeDelete(Row row) { 
 		
 		List<Block> blocks = Utils.getBlocks(row.getRowID(), row.getRowID(), tr.getRowsNum(), tr.getBlockSize(), tabName);
@@ -109,6 +132,12 @@ public class Delete extends Operation implements Operations, TempResults{
 		
 	}
 	
+	/**
+	 * If the storage type is on freeblocks, the deleted row ID is added to the free blocks list for the given block.
+	 * 
+	 * @param row
+	 * @param blockKey
+	 */
 	@SuppressWarnings("unchecked")
 	private void addToFreeBlocks(Row row, Number160 blockKey) throws ClassNotFoundException, IOException {
 		if (freeBlocksHandler.isFullBlocksStorage()) {
@@ -123,6 +152,11 @@ public class Delete extends Operation implements Operations, TempResults{
 		}
 	}
 	
+	/**
+	 * The row is removed from the indexes, using the operations in IndexHandler class.
+	 * 
+	 * @param row
+	 */
 	private void updateIndexes(Row row) throws ClassNotFoundException, IOException {
 		for (String col: ti.getIndexes()) {
 			try {
@@ -133,7 +167,7 @@ public class Delete extends Operation implements Operations, TempResults{
 				logger.error("Indexed Column is not an INT", e);
 			}
 		}
-		for (String col: ti.getUniqueIndexes()) {
+		for (String col: ti.getUnivocalIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
 				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), col);

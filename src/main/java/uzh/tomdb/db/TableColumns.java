@@ -8,12 +8,22 @@ import uzh.tomdb.parser.MalformedSQLQuery;
 
 /**
  *
+ * MetaData class for the metadata about Columns.
+ * 
+ * Objects of this class are saved in the DHT to give access to the information to every peer.
+ *
  * @author Francesco Luminati
  */
 public class TableColumns implements Serializable{
     
 	private static final long serialVersionUID = 1L;
+	/**
+	 * Name of the table.
+	 */
 	private String tabName;
+	/**
+	 * Columns in the table.
+	 */
     private Map<String, Integer> columns;
 
     public TableColumns(String tabName, Map<String, Integer> columns) {

@@ -7,14 +7,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.SortedMap;
 
 import net.tomp2p.futures.BaseFutureAdapter;
-import net.tomp2p.futures.FutureBootstrap;
 import net.tomp2p.futures.FutureDHT;
 import net.tomp2p.p2p.Peer;
-import net.tomp2p.p2p.PeerMaker;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.storage.Data;
@@ -31,49 +28,44 @@ import uzh.tomdb.db.TableRows;
 
 /**
  *
+ * Database peer, responsible for the table MetaData.
+ *
  * @author Francesco Luminati
  */
 public class DBPeer {
     private static final Logger logger = LoggerFactory.getLogger(DBPeer.class);
+    /**
+     * The peer used to do all the DHT operations.
+     */
     private static Peer peer;
+    /**
+     * Array of the local peers.
+     */
     private static Peer[] localPeers;
+    /**
+     * MetaData about table Columns.
+     */
     private static Map<Number160, Data> tabColumns = new HashMap<>();
+    /**
+     * MetaData about table Rows.
+     */
     private static Map<Number160, Data> tabRows = new HashMap<>();
+    /**
+     * MetaData about table Indexes.
+     */
     private static Map<Number160, Data> tabIndexes = new HashMap<>();
     private static boolean setupStorage = false;
     private static long timeRows;
     private static long timeIndexes;
     
-    public DBPeer(Random rnd) throws IOException {
-    	peer = new PeerMaker(new Number160(rnd)).setPorts(4000 + (rnd.nextInt() % 1000)).makeAndListen();
-        FutureBootstrap fb = peer.bootstrap().setBroadcast().setPorts(4000).start();
-        fb.awaitUninterruptibly();
-        if(fb.isFailed()) {
-            logger.debug("Bootstrap failed, becoming bootstrap peer...");
-            peer = new PeerMaker(new Number160(rnd)).setPorts(4000).makeAndListen();
-        } else {
-            logger.debug("Bootstrap successfull!");
-            if (fb.getBootstrapTo() != null) {
-                peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
-            }
-        }
+    public DBPeer(Peer[] peers) {
+    	peer = peers[0];
+    	localPeers = peers;
     }
     
-    public DBPeer(Random rnd, Peer[] peers) throws IOException {
-        localPeers = peers;
-    	peer = new PeerMaker(new Number160(rnd)).setPorts(4000 + (rnd.nextInt() % 1000)).makeAndListen();
-        FutureBootstrap fb = peer.bootstrap().setPeerAddress(localPeers[0].getPeerAddress()).start();
-        fb.awaitUninterruptibly();
-        if(fb.isFailed()) {
-            logger.debug("Bootstrap failed!");
-        } else {
-            logger.debug("Bootstrap successfull!");
-            if (fb.getBootstrapTo() != null) {
-                peer.discover().setPeerAddress(fb.getBootstrapTo().iterator().next()).start().awaitUninterruptibly();
-            }
-        }
-    }
-
+    /**
+     * Setup the MetaData from the DHT and returns a connection object.
+     */
     public Connection getConnection() {
     	fetchTableRows();
         fetchTableColumns();
@@ -85,17 +77,12 @@ public class DBPeer {
         return peer;
     }
     
-    /**
-     * 
-     * @return
-     */
     public static Map<Number160, Data> getTabColumns() {
         return tabColumns;
     }
     
     /**
-     * FETCH after 1 min
-     * @return
+     * FETCH if older than 1 min.
      */
     public static Map<Number160, Data> getTabRows() {
     	if (timeRows < System.currentTimeMillis()) {
@@ -105,8 +92,7 @@ public class DBPeer {
     }
 
     /**
-     * FETCH after 1 min
-     * @return
+     * FETCH if older than 1 min.
      */
     public static Map<Number160, Data> getTabIndexes() {
     	if (timeIndexes < System.currentTimeMillis()) {
@@ -128,7 +114,7 @@ public class DBPeer {
     }
     
     /**
-     * Blocking
+     * Blocking operation to get the MetaData from the DHT.
      */
     public static void fetchTableColumns() {
 		FutureDHT future = peer.get(Number160.createHash("TableColumnsMetaData")).setAll().start();
@@ -143,7 +129,7 @@ public class DBPeer {
     }
     
     /**
-     * Blocking
+     * Blocking operation to get the MetaData from the DHT.
      */
     public static void fetchTableRows() {
         FutureDHT future = peer.get(Number160.createHash("TableRowsMetaData")).setAll().start();
@@ -170,7 +156,7 @@ public class DBPeer {
     }
     
     /**
-     * Blocking
+     * Blocking operation to get the MetaData from the DHT.
      */
     public static void fetchTableIndexes() {
         FutureDHT future = peer.get(Number160.createHash("TableIndexesMetaData")).setAll().start();
@@ -188,6 +174,9 @@ public class DBPeer {
         }
     }
     
+    /**
+     * Non-blocking operation to put the MetaData in the DHT.
+     */
     public static void updateTableColumns() {
         
         FutureDHT future = peer.put(Number160.createHash("TableColumnsMetaData")).setDataMap(tabColumns).start();
@@ -206,11 +195,10 @@ public class DBPeer {
         //TODO BROADCAST!!! TABLE COLUMNS METADATA are updated only with CREATE TABLE, a client must EXPLICIT call FETCH METADATA to see a new table     
     }
     
+    /**
+     * Non-blocking operation to put the MetaData in the DHT.
+     */
     public static void updateTableRows() {
-    	updateTableRows(tabRows);
-    }
-    
-    public static void updateTableRows(Map<Number160, Data> tabRows) {
     	if(!tabRows.isEmpty()) {
         	try {
         		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
@@ -237,11 +225,10 @@ public class DBPeer {
 
 	}
     
-    public static void updateTableIndexes(){
-    	updateTableIndexes(tabIndexes);
-    }
-    
-    public static void updateTableIndexes(Map<Number160, Data> tabIndexes) {
+    /**
+     * Non-blocking operation to put the MetaData in the DHT.
+     */
+    public static void updateTableIndexes() {
 
         FutureDHT future = peer.put(Number160.createHash("TableIndexesMetaData")).setDataMap(tabIndexes).start();
         future.addListener(new BaseFutureAdapter<FutureDHT>() {
@@ -260,8 +247,7 @@ public class DBPeer {
     
     /**
      * Set Storage capacity of a peer.
-     * Takes the DSTRange of the first table, because it is not possible to define different storage capacity for different tables...
-     * 
+     * Takes the DSTRange of the first table, because it is not possible to define different storage capacity for different tables.
      */
     private static void doSetupStorage() {
 		try {
@@ -274,7 +260,7 @@ public class DBPeer {
 	}
     
     /**
-     * Adds a custom storage class that has a limited storage size according to the maxBlockSize.
+     * Adds a custom storage class that has a limited storage size according to the blockSize.
      * 
      * @param blockSize
      *            The max. number of elements per node.
@@ -301,12 +287,9 @@ public class DBPeer {
                 }
             };
             
-            peer.getPeerBean().setStorage(sm);
-            
-            if (localPeers != null) {
-                for (Peer peers : localPeers) {
-                    peers.getPeerBean().setStorage(sm);
-                }
+            for (Peer peers: localPeers) {
+                peers.getPeerBean().setStorage(sm);
             }
+            
     }
 }

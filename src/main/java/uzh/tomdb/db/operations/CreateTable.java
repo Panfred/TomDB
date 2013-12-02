@@ -22,32 +22,44 @@ import uzh.tomdb.parser.MalformedSQLQuery;
 
 /**
  *
+ * CREATE TABLE SQL operation.
+ *
  * @author Francesco Luminati
  */
 public class CreateTable extends Operation implements Operations{
     private final Logger logger = LoggerFactory.getLogger(CreateTable.class);
+    /**
+     * Columns of the new table.
+     */
     private List<String> columns;
+    /**
+     * Options for the new table, including indexes, storage method, block size and DST range.
+     */
     private Map<String, String> options;
     private List<String> indexes;
-    private List<String> uniqueIndexes;
+    private List<String> univocalIndexes;
     
     public CreateTable(String tabName, List<String> columns) {
     	super();
         super.tabName = tabName;
-        this.columns = columns;
         super.tabKey = Number160.createHash(tabName);
+        this.columns = columns;
     }
     
     public CreateTable(String tabName, List<String> columns, List<String> options) throws MalformedSQLQuery {
     	super();
         super.tabName = tabName;
-        this.columns = columns;
         super.tabKey = Number160.createHash(tabName);
+        this.columns = columns;
         indexes = new ArrayList<>();
-        uniqueIndexes = new ArrayList<>();
+        univocalIndexes = new ArrayList<>();
         this.options = parseOptions(options);
     }
-
+    
+    /**
+     * Initializes new table MetaData objects and inserts the information in them.
+     * The MetaData objects are then added to the DBPeer.
+     */
     @Override
     public void init() {
 
@@ -55,16 +67,12 @@ public class CreateTable extends Operation implements Operations{
 		TableRows tRows = new TableRows(tabName, getBlockSize(), getStorage());
 		TableIndexes tIndexes = new TableIndexes(tabName, getDSTRange());
 		
-		if (options != null && options.containsKey("primarykey")) {
-			tIndexes.setPrimaryKey(options.get("primarykey"));
-		}
-		
 		if (indexes != null) {
 			tIndexes.setIndexes(indexes);
 		}
 		
-		if (uniqueIndexes != null) {
-			tIndexes.setUniqueIndexes(uniqueIndexes);
+		if (univocalIndexes != null) {
+			tIndexes.setUnivocalIndexes(univocalIndexes);
 		}
 
 		try {
@@ -74,8 +82,7 @@ public class CreateTable extends Operation implements Operations{
 		} catch (IOException e) {
 			logger.error("Data error", e);
 		}
-		
-		
+	
     }
 
     private Map<String, Integer> getColumns() {
@@ -110,6 +117,11 @@ public class CreateTable extends Operation implements Operations{
     	return "insertionorder";
     }
     
+    /**
+     * Internal SQL parser for the custom OPTIONS statement.
+     * 
+     * @param options
+     */
 	private Map<String, String> parseOptions(List<String> options) throws MalformedSQLQuery {
 		Map<String, String> retOptions = new HashMap<>();
 
@@ -140,8 +152,8 @@ public class CreateTable extends Operation implements Operations{
 			case "index":
 				indexes.add(spl[1]);
 				break;
-			case "uniqueindex":
-				uniqueIndexes.add(spl[1]);
+			case "univocalindex":
+				univocalIndexes.add(spl[1]);
 				break;
 			default:
 				throw new MalformedSQLQuery("CREATE TABLE Options SQL error.");
@@ -153,9 +165,9 @@ public class CreateTable extends Operation implements Operations{
 
 	@Override
 	public String toString() {
-		return "CreateTable [logger=" + logger + ", tabName=" + tabName
+		return "CreateTable [tabName=" + tabName
 				+ ", columns=" + columns + ", options=" + options
-				+ ", indexes=" + indexes + ", uniqueIndexes=" + uniqueIndexes
+				+ ", indexes=" + indexes + ", univocalIndexes=" + univocalIndexes
 				+ "]";
 	}
     

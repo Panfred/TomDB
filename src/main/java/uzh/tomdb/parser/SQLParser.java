@@ -18,13 +18,27 @@ import uzh.tomdb.p2p.DBPeer;
 
 /**
  *
+ * Parser of the SQL statement.
+ * Identifies the type of query and if the query is correct creates an object of that query type.
+ *
  * @author Francesco Luminati
  */
 public class SQLParser {
     
+	/**
+	 * Tokenized SQL string.
+	 */
     private Tokenizer tokens;
+    /**
+     * Buffered operations to be executed later.
+     */
     private List<Operations> bufferedQueries = new ArrayList<>();
     
+    /**
+     * Identify type of query for CREATE TABLE, INSERT, UPDATE, DELETE, FETCH (to fetch table MetaData)
+     * 
+     * @param sql string
+     */
     public void parse(String sql) throws MalformedSQLQuery, Exception {
 
         tokens = new Tokenizer(sql);
@@ -53,7 +67,12 @@ public class SQLParser {
         }
 
     }
-
+    
+    /**
+     * Only for SELECT statement, returns a ResultSet.
+     * 
+     * @param sql string
+     */
 	public ResultSet parseQuery(String sql) throws MalformedSQLQuery, Exception {
         
         tokens = new Tokenizer(sql);
@@ -68,6 +87,11 @@ public class SQLParser {
         
     }
     
+	/**
+     * Only for SELECT statement, fetches the table MetaData and returns a ResultSet.
+     * 
+     * @param sql string
+     */
     public ResultSet parseQueryFetch(String sql) throws MalformedSQLQuery, Exception {
     	DBPeer.fetchTableRows();
     	return parseQuery(sql);
@@ -400,17 +424,17 @@ public class SQLParser {
                         condition.setOperator(token);
                     }
                     break;
-//                case Tokens.QUOTE:
-//                    if (tokens.hasNext()) {
-//                            operation.setValue(tokens.next());
-//                        } else {
-//                            throw new MalformedSQLQuery(tokens);
-//                        }
-//                        if (tokens.hasNext() && tokens.next().equals(Tokens.QUOTE)) {
-//                        } else {
-//                            throw new MalformedSQLQuery(tokens);
-//                        }
-//                    break;
+                case Tokens.QUOTE:
+                    if (tokens.hasNext()) {
+                            condition.setValue(tokens.next());
+                        } else {
+                            throw new MalformedSQLQuery(tokens);
+                        }
+                        if (tokens.hasNext() && tokens.next().equals(Tokens.QUOTE)) {
+                        } else {
+                            throw new MalformedSQLQuery(tokens);
+                        }
+                    break;
                 case Tokens.OPTIONS:
                 	tokens.previous();
                 	break OUTER;
@@ -476,6 +500,9 @@ public class SQLParser {
         }
     }
 
+    /**
+     * Start the execution of the buffered queries.
+     */
     public void start() {
         QueryEngine eng = new QueryEngine(bufferedQueries);
         eng.start();

@@ -1,3 +1,4 @@
+
 package uzh.tomdb.db;
 
 import java.io.Serializable;
@@ -6,14 +7,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+*
+* MetaData class for the metadata about Indexes.
+* 
+* Objects of this class are saved in the DHT to give access to the information to every peer.
+*
+* @author Francesco Luminati
+*/
 public class TableIndexes implements Serializable{
 
 	private static final long serialVersionUID = 1L;
+	/**
+	 * Name of the table.
+	 */
 	private String tabName;
+	/**
+	 * DST Range for this table, defined with the dstrange option in CREATE TABLE.
+	 * Default: 10000
+	 */
 	private int DSTRange;
-	private String primaryKey;
+	/**
+	 * List of non-univocal indexes, defined with the index option in CREATE TABLE.
+	 */
     private List<String> indexes = new ArrayList<>();
-    private List<String> uniqueIndexes = new ArrayList<>();
+    /**
+     * List of univocal indexes, defined with the univocalindex option in CREATE TABLE.
+     */
+    private List<String> univocalIndexes = new ArrayList<>();
+    /**
+     * MetaData for every index in the lists. 
+     * Contains information about the minimal and maximal value saved in the index, used to calculate the ranges for the DST.
+     */
     private Map<String, IndexMeta> indexMetas = new HashMap<>();
     
     public TableIndexes (String tabName, int DSTRange) {
@@ -28,22 +53,6 @@ public class TableIndexes implements Serializable{
     public int getDSTRange() {
     	return DSTRange;
     }
-    
-    public String getPrimaryKey() {
-		return primaryKey;
-	}
-
-	public void setPrimaryKey(String primaryKey) {
-		this.primaryKey = primaryKey;
-	}
-
-	public boolean hasPrimaryKey() {
-		if (primaryKey != null) {
-			return true;
-		} else {
-			return false;
-		}
-	}
 
 	public List<String> getIndexes() {
 		return indexes;
@@ -56,17 +65,23 @@ public class TableIndexes implements Serializable{
 		}
 	}
 
-	public List<String> getUniqueIndexes() {
-		return uniqueIndexes;
+	public List<String> getUnivocalIndexes() {
+		return univocalIndexes;
 	}
 
-	public void setUniqueIndexes(List<String> uniqueIndexes) {
-		this.uniqueIndexes = uniqueIndexes;
+	public void setUnivocalIndexes(List<String> uniqueIndexes) {
+		this.univocalIndexes = uniqueIndexes;
 		for (int i = 0; i < uniqueIndexes.size(); i++) {
 			indexMetas.put(uniqueIndexes.get(i), new IndexMeta());
 		}
 	}
 	
+	/**
+	 * Used to update the min/max value for every new entry in the index.
+	 * 
+	 * @param index name
+	 * @param value
+	 */
 	public void setMinMax(String index, int value) {
 		IndexMeta iMeta = indexMetas.get(index);
 		if(iMeta.initialized) {
@@ -107,8 +122,8 @@ public class TableIndexes implements Serializable{
 	@Override
 	public String toString() {
 		return "TableIndexes [tabName=" + tabName + ", DSTRange=" + DSTRange
-				+ ", primaryKey=" + primaryKey + ", indexes=" + indexes
-				+ ", uniqueIndexes=" + uniqueIndexes + ", indexMetas="
+				+ ", indexes=" + indexes
+				+ ", uniqueIndexes=" + univocalIndexes + ", indexMetas="
 				+ indexMetas + "]";
 	}
 

@@ -4,7 +4,7 @@ package uzh.tomdb.db.operations.helpers;
 import net.tomp2p.peers.Number160;
 
 /**
- * A helper class that stores the interval of Row forming a Block.
+ * Helper class that stores the interval of Row forming a table Block.
  *
  * @author Thomas Bocek / Francesco Luminati
  *
@@ -28,7 +28,10 @@ public class Block {
         this.to = to;
         this.table = table;
     }
-
+    
+    /**
+     * Table name necessary to identify different tables in the same DHT.
+     */
     @Override
     public String toString() {
         return "Block:"+table+":[" + from + ".." + to + "]";

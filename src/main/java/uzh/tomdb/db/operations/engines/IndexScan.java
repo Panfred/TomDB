@@ -1,3 +1,4 @@
+
 package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
@@ -29,13 +30,27 @@ import uzh.tomdb.parser.Tokens;
 
 /**
  * 
+ * IndexScan operation to retrieve rows from the table based on the indexes and the where conditions.
+ * 
  * @author Francesco Luminati
- *
  */
 public class IndexScan {
-	private final Logger logger = LoggerFactory.getLogger(IndexScan.class);  
+	private final Logger logger = LoggerFactory.getLogger(IndexScan.class); 
+	/**
+	 * Select object to get MetaData information.
+	 */
 	private Select select;
+	/**
+	 * ConditionHandler to get AND and OR conditions, i.e. on which column an indexscan must be performed.
+	 */
 	private ConditionsHandler condHandler;
+	/**
+	 * Save the elaborated indexed values in case that the DST block is full and it needs to retrieve more blocks (i.e. duplicates indexed values).
+	 */
+	private Set<Number160> elaboratedIndex = new HashSet<>();
+	/**
+	 * Save the elaborated table Blocks to avoid duplicate gets.
+	 */
 	private Set<String> elaboratedBlocks = new HashSet<>();
 	
 	public IndexScan(Select select, ConditionsHandler handler) {
@@ -43,9 +58,15 @@ public class IndexScan {
 		this.condHandler = handler;
 	}
 	
+	/**
+	 * Starts the necessary executions of indexscan if the index exists. 
+	 */
 	public void start() throws MalformedSQLQuery, ClassNotFoundException, IOException {
 		boolean indexExistence = false;
-
+		
+		/**
+		 * For AND conditions, when a column with index is found, one indexscan on that column is sufficient.
+		 */
 		for (Conditions condition : condHandler.getAndCond()) {
 
 			if (checkIndexExistence(condition)) {
@@ -55,7 +76,10 @@ public class IndexScan {
 			}
 
 		}
-
+		
+		/**
+		 * For OR conditions, every column involved in the conditions must have an index and multiple indexscans are started.
+		 */
 		for (Conditions condition : condHandler.getOrCond()) {
 			if (condition.getType().equals(Tokens.WHERE)) {
 				
@@ -83,7 +107,12 @@ public class IndexScan {
 			throw new MalformedSQLQuery("The IdexScan does not correspond to an index!");
 		}
 	}
-
+	
+	/**
+	 * For the indexscan, we have first to identify a range to scan on the DST, which is defined in the condition.
+	 * 
+	 * @param condition
+	 */
 	private void indexScan(Conditions condition) throws ClassNotFoundException, IOException {
 		WhereCondition cond = (WhereCondition) condition;
 		int from = 0;
@@ -112,14 +141,28 @@ public class IndexScan {
 		getDST(rowsBlocks, new HashSet<String>());
 		
 	}
-
+	
+	/**
+	 * The row IDs coming from the indexscan are sent to the tablescan to actually get the rows out of the DHT table.
+	 * 
+	 * @param map coming from the indexscan.
+	 */
 	private void filterIndexScan(Map<Number160, Data> map) throws ClassNotFoundException, IOException {
 		for(Map.Entry<Number160, Data> entry: map.entrySet()) {
-			IndexedValue iv = (IndexedValue) entry.getValue().getObject();
-			tableScan(iv.getRowIds());
+			if (!elaboratedIndex.contains(entry.getKey())) {
+				elaboratedIndex.add(entry.getKey());
+				IndexedValue iv = (IndexedValue) entry.getValue().getObject();
+				tableScan(iv.getRowIds());
+			}
 		}
 	}
 	
+	/**
+	 * For every row IDs coming from the indexscan, the corresponding table block is identified. 
+	 * When the block has not been retrieved yet, a DHT get operation is started. The operation gives the results forward to the ConditionsHandler for further elaborations.
+	 * 
+	 * @param rowIds
+	 */
 	private void tableScan(List<Integer> rowIds) {
 		List<Block> blocks = new ArrayList<>();
 		
@@ -161,17 +204,22 @@ public class IndexScan {
 		WhereCondition cond = (WhereCondition) condition;
 		TableIndexes ti = select.getTi();
 		
-		if (ti.getIndexes().contains(cond.getColumn()) || ti.getUniqueIndexes().contains(cond.getColumn())) {
+		if (ti.getIndexes().contains(cond.getColumn()) || ti.getUnivocalIndexes().contains(cond.getColumn())) {
 			return true;
 		}
 		
 		return false;
 	}
 	
-	 private void getDST(List<DSTBlock> blocks, final Set<String> already) throws ClassNotFoundException, IOException {
+	/**
+	 * Recursive operation to get the DST blocks. Recursion happens only when a DST block is full.
+	 * 
+	 * @param blocks
+	 * @param already
+	 */
+	private void getDST(List<DSTBlock> blocks, final Set<String> already) throws ClassNotFoundException, IOException {
 		 	
 		 	for (final DSTBlock block: blocks) {
-	    	  //logger.debug("GET INTERVAL: "+interval.toString());
 	          
 	    	  // we don't query the same thing again
 	          if (already.contains(block.toString())) {

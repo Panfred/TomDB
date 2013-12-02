@@ -2,24 +2,25 @@
 package uzh.tomdb.db.operations.helpers;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import uzh.tomdb.db.indexes.DSTBlock;
-import net.tomp2p.peers.Number160;
 
 /**
- *
+ * 
+ * Utility class for the calculation of the table and DST blocks.
+ * 
  * @author Francesco Luminati
  */
 public class Utils {
     
 	/**
-     * Give the last Block.
+     * Give the last Block for the given rowId.
      * 
      * @param rowId
      * @param blockCapacity
-     * @return 
+     * @param table name
+     * @return last block
      */
     public static Block getLastBlock(int rowId, int blockCapacity, String table) {
         Block block;
@@ -40,13 +41,14 @@ public class Utils {
     }
     
     /**
-     * Give the Blocks for the range.
+     * Give the Blocks for a range.
      * 
      * @param from
      * @param to
      * @param numRows
      * @param blockCapacity
-     * @return 
+     * @param table name
+     * @return list of blocks
      */
     public static List<Block> getBlocks(int from, int to, int numRows, int blockCapacity, String table) {
         List<Block> retVal = new ArrayList<>();
@@ -102,7 +104,7 @@ public class Utils {
      */
     public static List<DSTBlock> splitRange(int from, int to, int upper, String column) {
         List<DSTBlock> retVal = new ArrayList<>();
-        splitRange(from, to, 1, upper, getDSTHeight(upper), retVal, column);
+        splitRange(from, to, 0, upper, getDSTHeight(upper), retVal, column);
         return retVal;
     }
     
@@ -121,6 +123,8 @@ public class Utils {
      *            Hierarchy level
      * @param retVal
      *            Result collection
+     * @param column
+     * 			  Column name
      */
     private static void splitRange(int s, int t, int lower, int upper, int maxDepth, final List<DSTBlock> retVal, String column) {
         if (s <= lower && upper <= t || maxDepth == 0) {
@@ -136,13 +140,4 @@ public class Utils {
         }
     }
     
-    /**
-     *
-     */
-    public static Comparator<Number160> n160Comparator = new Comparator<Number160>() {
-                @Override
-                public int compare(Number160 o1, Number160 o2) {
-                    return o1.compareTo(o2);
-                }
-            };
 }

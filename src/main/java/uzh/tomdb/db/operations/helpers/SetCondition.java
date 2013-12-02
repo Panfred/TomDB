@@ -6,20 +6,16 @@ import uzh.tomdb.parser.Tokens;
 
 /**
  *
+ * Helper class for the Set conditions of a SET operation.
+ *
  * @author Francesco Luminati
  */
 public class SetCondition {
+	
     public String column = "";
     public String operator = Tokens.EQUAL;
     public String value = "";
-    
-    
-//    public WhereOperation(String column, String operator, String value) {
-//        this.column = column;
-//        this.operator = operator;
-//        this.value = value;
-//    }
-    
+
     public String getColumn() {
         return column;
     }
@@ -65,7 +61,5 @@ public class SetCondition {
     public String toString() {
         return "column=" + column + ", operator=" + operator + ", value=" + value;
     }
-
-
-    
+ 
 }

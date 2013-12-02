@@ -1,3 +1,4 @@
+
 package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
@@ -23,15 +24,41 @@ import uzh.tomdb.db.operations.helpers.WhereCondition;
 import uzh.tomdb.parser.MalformedSQLQuery;
 import uzh.tomdb.parser.Tokens;
 
+/**
+ * 
+ * Handles the conditions filtering the rows that do not match the conditions.
+ * 
+ * @author Francesco Luminati
+ */
 public class ConditionsHandler implements Handler{
 	private final Logger logger = LoggerFactory.getLogger(ConditionsHandler.class);
+	/**
+	 * Select object to get the MetaData information and to return the result rows.
+	 */
 	private Select select;
+	/**
+	 * To handle asynchronous DHT operations.
+	 */
 	private Set<String> futureManager = new HashSet<>();
+	/**
+	 * Unparsed conditions.
+	 */
 	private List<WhereCondition> conditions;
+	/**
+	 * AND condition is an object containing a list of AND.
+	 */
 	private AndCondition andCond = new AndCondition();
+	/**
+	 * OR condition is a list, can contain OR conditions and AND objects.
+	 */
 	private List<Conditions> orCond = new ArrayList<>();
 	private Map<String, Integer> resultRowCols;
 	
+	/**
+	 * The constructor sets also the columns in the ResultSet.
+	 * 
+	 * @param select object to give the results back to the select.
+	 */
 	public ConditionsHandler(Select select) throws MalformedSQLQuery {
 		this.select = select;
 		this.conditions = select.getWhereConditions();
@@ -52,6 +79,12 @@ public class ConditionsHandler implements Handler{
 		init();
 	}
 	
+	/**
+	 * Used for the Joins
+	 * 
+	 * @param select
+	 * @param conditions
+	 */
 	public ConditionsHandler(Select select, List<WhereCondition> conditions) throws MalformedSQLQuery {
 		this.select = select;
 		this.conditions = conditions;
@@ -59,6 +92,9 @@ public class ConditionsHandler implements Handler{
 		init();
 	}
 	
+	/**
+	 * Internal Parser to separate the conditions in AND and OR conditions.
+	 */
 	private void init() throws MalformedSQLQuery {
 		
 		Iterator<WhereCondition> it = conditions.iterator();
@@ -92,7 +128,13 @@ public class ConditionsHandler implements Handler{
 		}
 		
 	}
-
+	
+	/**
+	 * For the AND conditions a recursive function is used to get all the consecutive AND conditions and save them in a single AndCondition object.
+	 * 
+	 * @param condition
+	 * @param iterator
+	 */
 	private void recParseAndCond(WhereCondition cond, Iterator<WhereCondition> it) throws MalformedSQLQuery {
 
 		switch (cond.getBoolOperator()) {
@@ -120,14 +162,24 @@ public class ConditionsHandler implements Handler{
 
 	}
 	
+	/**
+	 * The rows asynchronous coming from a tablescan or indexscan are analyzed against the conditions.
+	 * Only rows respecting all the conditions are added to the ResultSet.
+	 * The FutureManager is used to decide when all the asynchronous DHT operations are terminated; in this case the BlockingQueue in ResultSet is stopped.
+	 * 
+	 * @param Data Map of the DHT
+	 * @param future.toString()
+	 */
 	public void filterRows(Map<Number160, Data> dataMap, String future) throws ClassNotFoundException, IOException, NumberFormatException, MalformedSQLQuery {
 		
 		for (Map.Entry<Number160, Data> entry : dataMap.entrySet()) {
 			
 			Row row = (Row) entry.getValue().getObject();
 			
-			//Skip empty rows!
-			if(row.getRowID() >= 0) {
+			/**
+			 * Skip empty rows of DELETE operations.
+			 */
+			if (row.getRowID() >= 0) {
 				if (andCond.getConditions().size() == 0 && orCond.size() == 0) {
 					select.addToResultSet(filterColumns(row));
 				} else if (orCond.size() > 0 && andCond.getConditions().size() > 0) { //if both set is the case of () OR () AND () ...
@@ -156,6 +208,12 @@ public class ConditionsHandler implements Handler{
 		}
 	}
 	
+	/**
+	 * The rows coming from a join are analyzed against the conditions.
+	 * Only rows respecting all the conditions are added to the ResultSet.
+	 * 
+	 * @param row
+	 */
 	public void filterJoinedRow(Row row) throws NumberFormatException, MalformedSQLQuery {
 		
 		if (andCond.getConditions().size() == 0 && orCond.size() == 0) {
@@ -176,6 +234,11 @@ public class ConditionsHandler implements Handler{
 		
 	}
 	
+	/**
+	 * Check the validity of the OR conditions for the given row.
+	 * 
+	 * @param row
+	 */
 	private boolean checkOrConditions(Row row) throws NumberFormatException, MalformedSQLQuery {
 		int trueNum = 0;
 		for (Conditions cond: orCond) {
@@ -197,6 +260,12 @@ public class ConditionsHandler implements Handler{
 		return false;
 	}
 	
+	/**
+	 * Check the validity of the AND conditions for the given row.
+	 * 
+	 * @param and condition
+	 * @param row
+	 */
 	private boolean checkAndConditions(AndCondition aCond, Row row) throws NumberFormatException, MalformedSQLQuery {
 		int trueNum = 0;
 		for (Conditions condition: aCond.getConditions()) {
@@ -211,17 +280,26 @@ public class ConditionsHandler implements Handler{
 		return false;
 	}
 	
+	/**
+	 * Check the condition itself (=, <, >, <=, >=, !=).
+	 * 
+	 * @param condition
+	 * @param row
+	 */
 	private boolean checkCondition(WhereCondition condition, Row row) throws NumberFormatException, MalformedSQLQuery {
+		
+		if (condition.getOperator().equals(Tokens.EQUAL)) {
+			if (row.getCol(condition.getColumn()).equals(condition.getValue())) {
+				return true;
+			} else {
+				return false;
+			}
+		}
 		
 		int colVal = Integer.parseInt(row.getCol(condition.getColumn()));
 		int val = Integer.parseInt(condition.getValue());
-
+		
 		switch (condition.getOperator()) {
-		case Tokens.EQUAL:
-			if (colVal == val) {
-				return true;
-			}
-			break;
 		case Tokens.GREATER:
 			if (colVal > val) {
 				return true;
@@ -250,11 +328,15 @@ public class ConditionsHandler implements Handler{
 		}
 		return false;
 	}
-
+	
+	/**
+	 * Add to the ResultSet only the columns interested by the SELECT.
+	 * 
+	 * @param row
+	 */
 	private Row filterColumns(Row row) {
 
 		if (select.isAllColumns()) {
-			logger.debug("RowID: " + row.getRowID());
 			return row;
 		} else {	
 			Row tmpRow = new Row(select.getTabName(), row.getRowID(), resultRowCols);

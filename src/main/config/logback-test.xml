@@ -5,42 +5,31 @@
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      		<level>TRACE</level>
+      		<onMatch>DENY</onMatch>
+      		<onMismatch>ACCEPT</onMismatch>
+    </filter>
   </appender>
   
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>TomDB.log</file>
+    <file>log.log</file>
     <append>false</append>
-    <encoder>
-      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+    <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+      <layout class="logback.layout.TraceLayout" />
     </encoder>
-  </appender>
-  
- <!--  
- <appender name="DB" class="ch.qos.logback.classic.db.DBAppender">
-		<connectionSource class="ch.qos.logback.core.db.DriverManagerConnectionSource">
-			<driverClass>com.mysql.jdbc.Driver</driverClass>
-			<url>jdbc:mysql://localhost:3306/TomDB</url>
-			<user>root</user>
-			<password>root</password>
-		</connectionSource>
-		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
       		<level>TRACE</level>
       		<onMatch>ACCEPT</onMatch>
       		<onMismatch>DENY</onMismatch>
-    	</filter>
-</appender>
---> 
+    </filter>
+  </appender>
 
-  <logger name="uzh.tomdb" level="DEBUG"/>
-  <logger name="net.tomp2p" level="ERROR"/>
-  <!-- <logger name="net.tomp2p.rpc.StorageRPC" level="OFF"/> -->
-  <!-- <logger name="net.tomp2p.p2p.DistributedRouting" level="DEBUG"/> -->
+  <logger name="net.tomp2p" level="WARN"/>
   
   <root level="TRACE">
     <appender-ref ref="STDOUT" />
-    <!-- <appender-ref ref="FILE" /> -->
-   <!-- <appender-ref ref="DB" /> --> 
+    <appender-ref ref="FILE" />
   </root>
-
-       
+  
 </configuration>

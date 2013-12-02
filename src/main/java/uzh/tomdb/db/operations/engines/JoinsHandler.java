@@ -1,4 +1,5 @@
- package uzh.tomdb.db.operations.engines;
+ 
+package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,21 +31,69 @@ import net.tomp2p.futures.FutureDHT;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
 
+/**
+ * 
+ * Handles the joins filtering the rows that do not join on the given column.
+ * 
+ * @author Francesco Luminati
+ */
 public class JoinsHandler implements Handler{
 	private final Logger logger = LoggerFactory.getLogger(JoinsHandler.class);  
+	/**
+	 * Select object to get MetaData information.
+	 */
 	private Select select;
+	/**
+	 * To handle asynchronous DHT operations.
+	 */
 	private Set<String> futureManager = new HashSet<>();
+	/**
+	 * Parsed where conditions, join conditions removed.
+	 */
 	private List<WhereCondition> whereConditions;
+	/**
+	 * Parsed join conditions, extracted from where conditions.
+	 */
 	private JoinCondition joinCondition;
+	/**
+	 * Select objects with the MetaData of the two tables involved in the join.
+	 */
 	private List<Select> selects = new ArrayList<>();
+	/**
+	 * Both tables name to join.
+	 */
 	private List<String> tabNames;
-	private Map<String, Map<String, Integer>> invIndex = new HashMap<>();
+	/**
+	 * The external map is used to separate table one and table two.
+	 * The internal map contains as key the value of the joined column, used to find join-matches. The value refer to the corresponding row IDs that have to be joined.
+	 */
+	private Map<String, Map<String, List<Integer>>> invIndex = new HashMap<>();
+	/**
+	 * The external map is used to separate table one and table two.
+	 * The internal map contains the actual row indexed in the invIndex.
+	 */
 	private Map<String, Map<Integer, Row>> rows = new HashMap<>();
-	private Map<String, Integer> rowCols = new LinkedHashMap<>(); 
+	private Map<String, Integer> rowCols = new LinkedHashMap<>();
+	/**
+	 * ConditionsHandler to further elaborate the joined row matching the where conditions.
+	 */
 	private ConditionsHandler conditionsHandler;
+	/**
+	 * Save the elaborated joined rows to avoid sending duplicates to the ResultSet.
+	 */
 	private Set<String> elaboratedRows = new HashSet<>();
+	/**
+	 * Save the elaborated indexed values in case that the DST block is full and it needs to retrieve more blocks (i.e. duplicates indexed values).
+	 */
 	private Set<String> elaboratedIndex = new HashSet<>();
+	/**
+	 * The external map is used to separate table one and table two.
+	 * The internal map contains as key the indexed value, used to find join-matches. The value refer to the corresponding row IDs that have to be joined.
+	 */
 	private Map<String, Map<Integer, List<Integer>>> indexes = new HashMap<>();
+	/**
+	 * Save the elaborated table Blocks to avoid duplicate gets.
+	 */
 	private Set<String> elaboratedBlocks = new HashSet<>();
 	
 	public JoinsHandler(Select select) throws MalformedSQLQuery {
@@ -53,10 +102,14 @@ public class JoinsHandler implements Handler{
 		init();
 	}
 	
+	/**
+	 * Internal parser to create JoinCondition objects out of the where conditions. A where-join conditions has the form of: tablename:columnname = tablename2:columnname2.
+	 * At the end, a ConditionsHandler with the remaining where conditions is created.
+	 */
 	private void init() throws MalformedSQLQuery {
 		
 		whereConditions = select.getWhereConditions();
-		if(whereConditions.size() > 0) {
+		if (whereConditions.size() > 0) {
 			for (int i = 0; i < whereConditions.size(); i++) {
 				WhereCondition cond = whereConditions.get(i);
 				
@@ -89,6 +142,11 @@ public class JoinsHandler implements Handler{
 		conditionsHandler = new ConditionsHandler(select, whereConditions);
 	}
 	
+	/**
+	 * First it creates a Select object for every table and add the tables to invInde, rows, and indexes maps.
+	 * Then the columns of both tables are joined in a single row and they are set in the result set.
+	 * At the end, two tablescans or two joinindexscans are executed, referring back to this object. 
+	 */
 	public void start() throws ClassNotFoundException, IOException, MalformedSQLQuery {
 		Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
 		Map<Number160, Data> tabRows = DBPeer.getTabRows();
@@ -101,7 +159,7 @@ public class JoinsHandler implements Handler{
 			TableIndexes ti = (TableIndexes) tabIndexes.get(tabKey).getObject();
 			selects.add(new Select(tabName, tr, ti, tc));
 			
-			invIndex.put(tabName, new ConcurrentHashMap<String, Integer>());
+			invIndex.put(tabName, new ConcurrentHashMap<String, List<Integer>>());
 			rows.put(tabName, new ConcurrentHashMap<Integer, Row>());
 			indexes.put(tabName, new ConcurrentHashMap<Integer, List<Integer>>());
 		}
@@ -139,6 +197,10 @@ public class JoinsHandler implements Handler{
 		}
 	}
 	
+	/**
+	 * The rows asynchronous coming from the tablescans of both tables are added here to the respective invIndex and rows maps.
+	 * After that the checkMatches method is started, so that every time the already possible matches are returned as results to the ResultSet.
+	 */
 	@Override
 	public void filterRows(Map<Number160, Data> dataMap, String future) throws ClassNotFoundException, IOException, MalformedSQLQuery {
 
@@ -146,9 +208,20 @@ public class JoinsHandler implements Handler{
 			
 			Row row = (Row) entry.getValue().getObject();
 			
-			//Skip empty rows!
-			if(row.getRowID() >= 0) {
-				invIndex.get(row.getTabName()).put(row.getCol(joinCondition.getColumn(row.getTabName())), row.getRowID());
+		/**
+		 * Skip empty rows of DELETE operations.
+		 */
+		if (row.getRowID() >= 0) {
+			
+			if (!invIndex.get(row.getTabName()).containsKey(row.getCol(joinCondition.getColumn(row.getTabName())))) {
+					List<Integer> rowIds = new ArrayList<>();
+					rowIds.add(row.getRowID());
+					invIndex.get(row.getTabName()).put(row.getCol(joinCondition.getColumn(row.getTabName())), rowIds);
+				} else {
+					List<Integer> rowIds = invIndex.get(row.getTabName()).get(row.getCol(joinCondition.getColumn(row.getTabName())));
+					rowIds.add(row.getRowID());
+					invIndex.get(row.getTabName()).put(row.getCol(joinCondition.getColumn(row.getTabName())), rowIds);
+				}
 				rows.get(row.getTabName()).put(row.getRowID(), row);
 			}	
 			
@@ -166,20 +239,28 @@ public class JoinsHandler implements Handler{
 		}
 	}
 	
+	/**
+	 * For every keys of the invIndex for table one, a matching key in invIndex for table two is searched.
+	 * If a match is found, the row IDs for table one and table two are sent to joinRows method.
+	 */
 	private void checkMatches() throws MalformedSQLQuery {
 		String tabOne = tabNames.get(0);
 		String tabTwo = tabNames.get(1);
 		
-		for (Map.Entry<String, Integer> entry: invIndex.get(tabOne).entrySet()) {
+		for (Map.Entry<String, List<Integer>> entry: invIndex.get(tabOne).entrySet()) {
 			if (invIndex.get(tabTwo).containsKey(entry.getKey())) {
-				joinRows(rows.get(tabOne).get(entry.getValue()), rows.get(tabTwo).get(invIndex.get(tabTwo).get(entry.getKey())));
-				rows.get(tabOne).remove(entry.getKey());
-				rows.get(tabTwo).remove(entry.getKey());
+				joinRows(entry.getValue(), invIndex.get(tabTwo).get(entry.getKey()));
+				invIndex.get(tabOne).remove(entry.getKey());
+				invIndex.get(tabTwo).remove(entry.getKey());
 			}
 		}
 		
 	}
 	
+	/**
+	 * The row IDs asynchronous coming from the joinindexscans of both tables are added here to the respective indexes map.
+	 * After that the checkIndexesMatches method is started, so that every time the already possible matches over indexed values are sent forward to the tablescan.
+	 */
 	public void filterIndex(Map<Number160, Data> dataMap, String tabName, String future) throws ClassNotFoundException, IOException {
 		
 		for (Map.Entry<Number160, Data> entry : dataMap.entrySet()) {
@@ -195,6 +276,10 @@ public class JoinsHandler implements Handler{
 		checkIndexesMatches();
 	}
 	
+	/**
+	 * For every keys of the indexes map for table one, a matching key in indexes map for table two is searched.
+	 * If a match is found, the row IDs for table one and table two are sent to tablescan method to be retrieved from the table DHT.
+	 */
 	private void checkIndexesMatches() {
 		String tabOne = tabNames.get(0);
 		String tabTwo = tabNames.get(1);
@@ -208,6 +293,13 @@ public class JoinsHandler implements Handler{
 		}
 	}
 	
+	/**
+	 * For every row IDs coming from the checkIndexMatches, the corresponding table block is identified. 
+	 * When the block has not been retrieved yet, a DHT get operation is started. The operation returns the results back to this object to be elaborated by the filterRows method.
+	 * 
+	 * @param tabOneRowIds
+	 * @param tabTwoRowIds
+	 */
 	private void tableScans(List<Integer> tabOneRowIds, List<Integer> tabTwoRowIds) {
 		List<Block> blocks = new ArrayList<>();
 		
@@ -228,11 +320,7 @@ public class JoinsHandler implements Handler{
 			}
 		}
 		
-		for(Block ii: blocks) {
-			logger.debug("BLOCK: "+ii.toString());
-		}
-		
-		for (Block block : blocks) {
+		for (Block block: blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
 			addToFutureManager(future.toString());
@@ -252,19 +340,34 @@ public class JoinsHandler implements Handler{
 		}
 
 	}
-
-	private void joinRows(Row rowOne, Row rowTwo) throws NumberFormatException, MalformedSQLQuery {
+	
+	/**
+	 * For every row IDs of table one, a new joined row for every row IDs of table two is created and sent to ResultSet.
+	 * 
+	 * @param rowOne
+	 * @param rowTwo
+	 */
+	private void joinRows(List<Integer> oneIds, List<Integer> twoIds) throws NumberFormatException, MalformedSQLQuery {
+		String tabOne = tabNames.get(0);
+		String tabTwo = tabNames.get(1);
 		
-		List<String> row = new ArrayList<>();
-		row.addAll(rowOne.getRow());
-		row.addAll(rowTwo.getRow());
-		Row joinRow = new Row("join", 0, row, rowCols);
-		
-		if(!elaboratedRows.contains(joinRow.toString())) {
-			conditionsHandler.filterJoinedRow(joinRow);
-			elaboratedRows.add(joinRow.toString());
+		for (Integer oneId: oneIds) {
+			for (Integer twoId: twoIds) {
+				List<String> row = new ArrayList<>();
+				row.addAll(rows.get(tabOne).get(oneId).getRow());
+				row.addAll(rows.get(tabTwo).get(twoId).getRow());
+				Row joinRow = new Row("join", 0, row, rowCols);
+				
+				if(!elaboratedRows.contains(joinRow.toString())) {
+					elaboratedRows.add(joinRow.toString());
+					conditionsHandler.filterJoinedRow(joinRow);
+				}
+				
+				rows.get(tabOne).remove(oneId);
+				rows.get(tabTwo).remove(twoId);
+			}
 		}
-		
+
 	}
 
 	@Override

@@ -22,6 +22,8 @@ import uzh.tomdb.db.operations.helpers.Utils;
 
 /**
  * 
+ * Handles the indexes and all the related Distributed Segment Tree operations.
+ * 
  * @author Francesco Luminati
  *
  */
@@ -33,6 +35,15 @@ public class IndexHandler {
 		this.peer = peer;
 	}
 	
+	/**
+	 * Operation to insert a new non-univocal indexed value in the index.
+	 * The index is first checked if the value has been already indexed, in that case the row ID of the new value is added to the list.
+	 * 
+	 * @param rowId
+	 * @param indexedVal
+	 * @param upperBound
+	 * @param column name
+	 */
 	public boolean put(int rowId, int indexedVal, int upperBound, String column) throws IOException, ClassNotFoundException {
 		IndexedValue iv = null;
 		iv = checkIndex(indexedVal, upperBound, column);
@@ -46,6 +57,15 @@ public class IndexHandler {
 		return true;
 	}
 	
+	/**
+	 * Operation to remove an indexed value from the index.
+	 * The value is first identified and then removed. If the rowId list is then empty, it is completely removed from the DST.
+	 * 
+	 * @param rowId
+	 * @param indexedVal
+	 * @param upperBound
+	 * @param column name
+	 */
 	public void remove(int rowId, int indexedVal, int upperBound, String column) throws ClassNotFoundException, IOException {
 		IndexedValue iv = null;
 		
@@ -62,7 +82,15 @@ public class IndexHandler {
 			logger.error("Indexed value not found in the index!");
 		}
 	}
-
+	
+	/**
+	 * Check if the indexed value is already present in the index and returns it.
+	 * 
+	 * @param indexedVal
+	 * @param upperBound
+	 * @param column name
+	 * @return IndexedValue object
+	 */
 	protected IndexedValue checkIndex(int indexedVal, int upperBound, String column) throws ClassNotFoundException, IOException {
 		
 		Map<Integer, IndexedValue> results = getDSTblocking(indexedVal, indexedVal, upperBound, column);
@@ -74,14 +102,18 @@ public class IndexHandler {
 		return null;
 	}
 	
-	
-	
+	/**
+	 * DHT Operation to put an IndexedValue object on every level of the DST.
+	 * 
+	 * @param indexedVal
+	 * @param upperBound
+	 * @param column name
+	 */
 	protected void putDST(IndexedValue indexedVal, int upperBound, String column) throws IOException {
 	  
-		  DSTBlock block = new DSTBlock(1, upperBound, column);
+		  DSTBlock block = new DSTBlock(0, upperBound, column);
 		  
 		  for (int i = 0; i <= Utils.getDSTHeight(upperBound); i++) {
-//			  logger.debug("PUT INTERVAL: "+block.toString());
 		      Number160 key = Number160.createHash(block.toString());
 		      FutureDHT future = peer.put(key).setData(new Number160(indexedVal.getIndexedVal()), new Data(indexedVal)).start();
 		      future.addListener(new BaseFutureAdapter<FutureDHT>() {
@@ -100,8 +132,15 @@ public class IndexHandler {
 	 
 	}
 	
+	/**
+	 * DHT Operation to remove an IndexedValue object from every level of the DST.
+	 * 
+	 * @param indexedVal
+	 * @param upperBound
+	 * @param column name
+	 */
 	private void removeDST(IndexedValue iv, int upperBound, String column) {
-		DSTBlock block = new DSTBlock(1, upperBound, column);
+		DSTBlock block = new DSTBlock(0, upperBound, column);
 		  
 		for (int i = 0; i <= Utils.getDSTHeight(upperBound); i++) {
 			FutureDHT future = peer.remove(block.getHash()).setContentKey(new Number160(iv.getIndexedVal())).start();
@@ -121,6 +160,15 @@ public class IndexHandler {
 		
 	}
 	
+	/**
+	 * Blocking DHT operation to get the IndexedValue from the index.
+	 * The blocking is reached with the wait/notify construct.
+	 * 
+	 * @param from
+	 * @param to
+	 * @param upperBound
+	 * @param column
+	 */
 	public Map<Integer, IndexedValue> getDSTblocking(int from, int to, int upperBound, String column) throws ClassNotFoundException, IOException {
       List<DSTBlock> rowsBlocks = Utils.splitRange(from, to, upperBound, column);
       Map<Integer, IndexedValue> results = new HashMap<>();
@@ -161,7 +209,6 @@ public class IndexHandler {
 			throws ClassNotFoundException, IOException {
 
 		for (final DSTBlock block : blocks) {
-			// logger.debug("GET INTERVAL: "+interval.toString());
 
 			// we don't query the same thing again
 			if (already.contains(block.toString())) {
@@ -197,23 +244,19 @@ public class IndexHandler {
 							getDST(block.split(), upperBound, already, results,
 									counter, ih);
 						}
-
-						if (counter.decrementAndGet() == 0) {
-							synchronized (ih) {
-								ih.notify();
-							}
-						}
-
+						
 					} else {
 						// add exception?
 						logger.debug("GET DST: Get failed!");
-						if (counter.decrementAndGet() == 0) {
-							synchronized (ih) {
-								ih.notify();
-							}
+					}
+					
+					if (counter.decrementAndGet() == 0) {
+						synchronized (ih) {
+							ih.notify();
 						}
 					}
-				}
+					
+				}	
 			});
 		}
 

@@ -1,9 +1,16 @@
+
 package uzh.tomdb.db.indexes;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 
+ * MetaData class containing the indexed value and all the row IDs that it is pointing to.
+ * 
+ * @author Francesco Luminati
+ */
 public class IndexedValue implements Serializable{
 
 	private static final long serialVersionUID = 1L;

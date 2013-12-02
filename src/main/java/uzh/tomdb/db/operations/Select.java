@@ -22,19 +22,42 @@ import uzh.tomdb.p2p.DBPeer;
 import uzh.tomdb.parser.MalformedSQLQuery;
 
 /**
- * 
- * @author Francesco Luminati
- */
+*
+* SELECT SQL operation.
+*
+* @author Francesco Luminati
+*/
 public class Select extends Operation implements Operations {
 	private final Logger logger = LoggerFactory.getLogger(Select.class);
+	/**
+	 * The columns to be selected.
+	 */
 	private List<String> columns;
+	/**
+	 * Where conditions for the SELECT operation.
+	 */
 	private List<WhereCondition> whereConditions;
+	/**
+	 * allColumns correspond to the SELECT *.
+	 */
 	private boolean allColumns = false;
+	/**
+     * ResultSet to return the results through the API.
+     */
 	private ResultSet resultSet;
+	/**
+     * Scan type (tablescan/indexscan) defined in the OPTIONS statement.
+     */
 	private String scanType;
+	/**
+	 * List of table names used for the JOIN.
+	 */
 	private List<String> tabNames;
 	private TempResults tmpRes;
-
+	
+	/**
+	 * For a normal SELECT.
+	 */
 	public Select(boolean allColumns, String tabName, List<String> columns, List<WhereCondition> conditions, String scanType) {
 		super();
 		super.tabName = tabName;
@@ -45,6 +68,9 @@ public class Select extends Operation implements Operations {
 		this.scanType = scanType;
 	}
 	
+	/**
+	 * For the JOIN.
+	 */
 	public Select(boolean allColumns, List<String> tabNames, List<String> columns, List<WhereCondition> conditions, String scanType) {
 		super();
 		this.tabNames = tabNames;
@@ -54,6 +80,9 @@ public class Select extends Operation implements Operations {
 		this.scanType = scanType;
 	}
 	
+	/**
+	 * For internal SELECTs, used by the JOIN.
+	 */
 	public Select(String tabName, TableRows tr, TableIndexes ti, TableColumns tc) {
 		super();
 		super.tabName = tabName;
@@ -62,6 +91,9 @@ public class Select extends Operation implements Operations {
 		super.tc = tc;
 	}
 	
+	/**
+	 * For internal SELECTs used by UPDATE, DELETE.
+	 */
 	public Select(String tabName, TableRows tr, TableIndexes ti, TableColumns tc, List<WhereCondition> conditions, String scanType, TempResults tmpRes) {
 		super();
 		super.tabName = tabName;
@@ -75,7 +107,11 @@ public class Select extends Operation implements Operations {
 		super.ti = ti;
 		super.tc = tc;
 	}
-
+	
+	/**
+	 * Creates a new ResultSet if necessary, sets the table MetaData if necessary and starts the QueryExecuter.
+	 * The QueryExecuter gets this object and give it to the ConditionsHandler.
+	 */
 	@Override
 	public void init() {
 		try {
@@ -105,6 +141,11 @@ public class Select extends Operation implements Operations {
 		}
 	}
 	
+	/**
+	 * Gets the rows from the ConditionsHandler.
+	 * 
+	 * @param row
+	 */
 	public void addToResultSet(Row row) {
 		if (tmpRes != null) {
 			tmpRes.addRow(row);
@@ -146,9 +187,10 @@ public class Select extends Operation implements Operations {
 
 	@Override
 	public String toString() {
-		return super.toString()+" Select{" + "tabName=" + tabName + ", columns=" + columns
-				+ ", whereOperations=" + whereConditions + ", allColumns="
-				+ allColumns + '}';
+		return "Select [columns=" + columns + ", whereConditions="
+				+ whereConditions + ", allColumns=" + allColumns
+				+ ", resultSet=" + resultSet + ", scanType=" + scanType
+				+ ", tabNames=" + tabNames + "]";
 	}
 
 }

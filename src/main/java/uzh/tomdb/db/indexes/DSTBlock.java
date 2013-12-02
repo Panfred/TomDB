@@ -7,6 +7,7 @@ import java.util.List;
 import net.tomp2p.peers.Number160;
 
 /**
+ * 
  * A helper class that stores the interval (DST).
  *
  * @author Thomas Bocek / Francesco Luminati
