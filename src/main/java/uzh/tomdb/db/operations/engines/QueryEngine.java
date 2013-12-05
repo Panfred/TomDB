@@ -108,9 +108,11 @@ public class QueryEngine {
         FreeBlocksHandler freeBlocks = null;
         TableRows tr = null;
         TableIndexes ti = null;
-
+        
+        logger.trace("INSERT-WHOLE", "BEGIN", Statement.experiment);
+        
         for (Insert ins: inserts) {
-            logger.trace("INSERT BEGIN", ins.hashCode(), Statement.experiment);
+           
             if (tabName == null) {
             	tabName = ins.getTabName();
             	tabKey = Number160.createHash(tabName);
@@ -121,8 +123,7 @@ public class QueryEngine {
     			} catch (ClassNotFoundException | IOException e) {
     				logger.error("Data error", e);
     			}
-            } 
-            if (!tabName.equals(ins.getTabName())) {
+            } else if (!tabName.equals(ins.getTabName())) {
     			try {
     				tabRows.put(tabKey, new Data(tr));
         			tabIndexes.put(tabKey, new Data(ti));
@@ -130,33 +131,43 @@ public class QueryEngine {
                 	tabKey = Number160.createHash(tabName);
     				tr = (TableRows) tabRows.get(tabKey).getObject();
     				ti =  (TableIndexes) tabIndexes.get(tabKey).getObject();
+    				freeBlocks.update();
+                	freeBlocks = new FreeBlocksHandler(tabName);
     			} catch (ClassNotFoundException | IOException e) {
     				logger.error("Data error", e);
     			}
             } 
-            if (!tabName.equals(ins.getTabName()) && freeBlocks.isFullBlocksStorage()) {
-            	freeBlocks.update();
-            	freeBlocks = new FreeBlocksHandler(tabName);
-            }
             
             ins.init(freeBlocks, tr, ti);
-
-            logger.trace("INSERT END", ins.hashCode(), Statement.experiment);
+            
         }
         
-        if (freeBlocks.isFullBlocksStorage()) {
-        	freeBlocks.update();
+        boolean done = false;
+        while (!done) {
+        	int countTrue = 0;
+        	for (Insert ins: inserts) {
+        		if (ins.getDone()) {
+        			countTrue++;
+        		}
+        	}
+        	if (countTrue == inserts.size()) {
+        		done = true;
+        	}
         }
-       
+        
+        freeBlocks.update();
+
         try {
 			tabRows.put(tabKey, new Data(tr));
 			tabIndexes.put(tabKey, new Data(ti));
 		} catch (IOException e) {
 			logger.error("Data error", e);
 		}
-        
+       
         DBPeer.updateTableRows();
         DBPeer.updateTableIndexes();
+        
+        logger.trace("INSERT-WHOLE", "END", Statement.experiment);
     }
     
 	/**
@@ -202,7 +213,7 @@ public class QueryEngine {
         	delete.init();
         }
         
-        //DBPeer.updateTableIndexes(); //Set min max of indexes not done
+        //DBPeer.updateTableIndexes(); //Set min max of indexes not implemented yet
     }
  
 }

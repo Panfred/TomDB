@@ -13,6 +13,7 @@ import net.tomp2p.futures.FutureDHT;
 import net.tomp2p.p2p.Peer;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.p2p.DBPeer;
 
@@ -30,7 +31,7 @@ public class FreeBlocksHandler {
 	/**
 	 * Map containing the block key and a list of free row IDs.
 	 */
-	private Map<Number160, Data> freeBlocks;
+	private Map<Number160, Data> freeBlocks = new HashMap<>();
 	private int isFullBlocksStorage = 0;
 	
 	public FreeBlocksHandler(String tabName) {
@@ -53,15 +54,16 @@ public class FreeBlocksHandler {
 	 */
 	private void fetch() {
 			FutureDHT future = peer.get(key).setAll().start();
+			logger.trace("FREEBLOCKSHANDLER-FETCH", "BEGIN", Statement.experiment, tabName, future.hashCode());
 			future.awaitUninterruptibly();
             if (future.isSuccess()) {
             	freeBlocks = future.getDataMap();
                 logger.debug("FREEBLOCKS: Get succeed!");     
             } else {
                 //add exception?
-                freeBlocks = new HashMap<>();
                 logger.debug("FREEBLOCKS: Get failed!");
             }
+            logger.trace("FREEBLOCKSHANDLER-FETCH", "END", Statement.experiment, tabName, future.hashCode());
 	}
 	
 	/**
@@ -70,6 +72,7 @@ public class FreeBlocksHandler {
 	public void update() {
 		if(isFullBlocksStorage() && freeBlocks.size() > 0) { 
 			FutureDHT future = peer.put(key).setDataMap(freeBlocks).start();
+			logger.trace("FREEBLOCKSHANDLER-UPDATE", "BEGIN", Statement.experiment, tabName, future.hashCode());
 	        future.addListener(new BaseFutureAdapter<FutureDHT>() {
 	            @Override
 	            public void operationComplete(FutureDHT future) throws Exception {
@@ -79,6 +82,7 @@ public class FreeBlocksHandler {
 	                    //add exception?
 	                    logger.debug("FREEBLOCKS: Put failed!");
 	                }
+	                logger.trace("FREEBLOCKSHANDLER-UPDATE", "END", Statement.experiment, tabName, future.hashCode());
 	            }
 	        });
 		}

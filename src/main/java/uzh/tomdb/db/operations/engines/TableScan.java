@@ -2,12 +2,14 @@
 package uzh.tomdb.db.operations.engines;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.tomp2p.futures.BaseFutureAdapter;
 import net.tomp2p.futures.FutureDHT;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.operations.Select;
 import uzh.tomdb.db.operations.helpers.Block;
 import uzh.tomdb.db.operations.helpers.Utils;
@@ -28,10 +30,12 @@ public class TableScan {
 	 * The handler can be a ConditionsHandler or a JoinsHandler, used to forward the resulting rows.
 	 */
 	private Handler handler;
+	private int expHash = 0;
 	
 	public TableScan(Select select, Handler handler) {
 		this.select = select;
 		this.handler = handler;
+		this.expHash = select.hashCode();
 	}
 	
 	/**
@@ -39,8 +43,11 @@ public class TableScan {
 	 */
 	public void start() {
 		List<Block> blocks = Utils.getBlocks(0, select.getTr().getRowsNum(), select.getTr().getRowsNum(), select.getTr().getBlockSize(), select.getTabName());
-				
-			for (Block block : blocks) {
+		
+		final AtomicInteger counter = new AtomicInteger(blocks.size());	
+		logger.trace("TABLESCAN-GET", "BEGIN", Statement.experiment, expHash, counter.get());	
+		
+		for (Block block: blocks) {
 				
 				FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
 				handler.addToFutureManager(future.toString());
@@ -55,6 +62,9 @@ public class TableScan {
 							// add exception?
 							logger.debug("GET TableScan: Get failed!");
 							handler.removeFromFutureManager(future.toString());
+						}
+						if (counter.decrementAndGet() == 0) {
+							logger.trace("TABLESCAN-GET", "END", Statement.experiment, expHash);
 						}
 					}
 					

@@ -364,22 +364,26 @@ public class SQLParser {
         String val = "";
         
         if (tokens.thisElement().equals(Tokens.QUOTE)) {
-            String token = "";
-            while (tokens.hasNext()) {
-                token = tokens.next();
+            if (tokens.hasNext()) {
+            	String token = "";
+                while (tokens.hasNext()) {
+                    token = tokens.next();
 
-                if (token.equals(Tokens.QUOTE)) {
-                    break;
-                }
+                    if (token.equals(Tokens.QUOTE)) {
+                        break;
+                    }
 
-                if (!val.isEmpty()) {
-                    val += " " + token;
-                } else {
-                    val += token;
+                    if (!val.isEmpty()) {
+                        val += " " + token;
+                    } else {
+                        val += token;
+                    }
                 }
-            }
-            if (!token.equals(Tokens.QUOTE)) {
-                throw new MalformedSQLQuery(tokens);
+                if (!token.equals(Tokens.QUOTE)) {
+                    throw new MalformedSQLQuery(tokens);
+                }
+            } else {
+            	 throw new MalformedSQLQuery(tokens);
             }
         } else {
             throw new MalformedSQLQuery(tokens);
@@ -425,15 +429,7 @@ public class SQLParser {
                     }
                     break;
                 case Tokens.QUOTE:
-                    if (tokens.hasNext()) {
-                            condition.setValue(tokens.next());
-                        } else {
-                            throw new MalformedSQLQuery(tokens);
-                        }
-                        if (tokens.hasNext() && tokens.next().equals(Tokens.QUOTE)) {
-                        } else {
-                            throw new MalformedSQLQuery(tokens);
-                        }
+                    condition.setValue(getQuote(tokens));
                     break;
                 case Tokens.OPTIONS:
                 	tokens.previous();
@@ -474,16 +470,8 @@ public class SQLParser {
                         throw new MalformedSQLQuery(tokens, "SetCondition ERROR: not set!");
                     }
                     break;
-                case Tokens.QUOTE:
-                    if (tokens.hasNext()) {
-                        condition.setValue(tokens.next());
-                    } else {
-                        throw new MalformedSQLQuery(tokens);
-                    }
-                    if (tokens.hasNext() && tokens.next().equals(Tokens.QUOTE)) {
-                    } else {
-                        throw new MalformedSQLQuery(tokens);
-                    }
+                case Tokens.QUOTE:       
+                    condition.setValue(getQuote(tokens));
                     break;
                 case Tokens.EQUAL:
                     break;

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import net.tomp2p.futures.BaseFutureAdapter;
 import net.tomp2p.futures.FutureDHT;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableColumns;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
@@ -45,6 +47,7 @@ public class Delete extends Operation implements Operations, TempResults{
     private Map<Number160, Data> freeBlocks;
     private IndexHandler ih;
     private Data data;
+    private AtomicInteger futureHandler = new AtomicInteger(0);
     
     public Delete(String tabName, List<WhereCondition> whereOperations, String scanType) {
         super();
@@ -54,7 +57,7 @@ public class Delete extends Operation implements Operations, TempResults{
         this.whereConditions = whereOperations;
         
         freeBlocksHandler = new FreeBlocksHandler(tabName);
-        ih = new IndexHandler(peer);
+        ih = new IndexHandler(peer, this.hashCode());
     }
     
     /**
@@ -77,6 +80,8 @@ public class Delete extends Operation implements Operations, TempResults{
 			logger.error("Data error", e);
 		} 
 			
+		logger.trace("DELETE-WHOLE", "BEGIN", Statement.experiment, this.hashCode());
+		
     	new Select(tabName, tr, ti, tc, whereConditions, scanType, this).init();
 		
 		//should be blocking?
@@ -94,9 +99,6 @@ public class Delete extends Operation implements Operations, TempResults{
 	public void addRow(Row row) {
 		if (row.getRowID() >= 0) {
 			executeDelete(row);
-		} else {
-			freeBlocksHandler.update();
-			logger.debug("DELETE completed");
 		}
 	}
 	
@@ -111,6 +113,8 @@ public class Delete extends Operation implements Operations, TempResults{
 		Number160 blockKey = blocks.get(0).getHash();
 		
 		FutureDHT future = peer.put(blockKey).setData(new Number160(row.getRowID()), data).start();
+		futureHandler.incrementAndGet();
+		logger.trace("DELETE-PUT-ROW", "BEGIN", Statement.experiment, future.hashCode(), this.hashCode());
 		future.addListener(new BaseFutureAdapter<FutureDHT>() {
             @Override
             public void operationComplete(FutureDHT future) throws Exception {
@@ -119,6 +123,12 @@ public class Delete extends Operation implements Operations, TempResults{
                 } else {
                     //add exception?
                     logger.debug("DELETE Insert empty Row: Put failed!");
+                }
+                logger.trace("DELETE-PUT-ROW", "END", Statement.experiment, future.hashCode());
+                if (futureHandler.decrementAndGet() == 0) {
+                	freeBlocksHandler.update();
+                	logger.debug("DELETE completed");
+        			logger.trace("DELETE-WHOLE", "END", Statement.experiment, this.hashCode());
                 }
             }
         });
@@ -161,7 +171,7 @@ public class Delete extends Operation implements Operations, TempResults{
 		for (String col: ti.getIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
-				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), col);
+				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col);
 				//TODO SET index Min Max ???
 			} catch (NumberFormatException e) {
 				logger.error("Indexed Column is not an INT", e);
@@ -170,7 +180,7 @@ public class Delete extends Operation implements Operations, TempResults{
 		for (String col: ti.getUnivocalIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
-				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), col);
+				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col);
 				//TODO SET index Min Max ???
 			} catch (NumberFormatException e) {
 				logger.error("Indexed Column is not an INT", e);

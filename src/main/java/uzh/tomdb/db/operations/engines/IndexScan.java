@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.tomp2p.futures.BaseFutureAdapter;
 import net.tomp2p.futures.FutureDHT;
@@ -16,6 +17,7 @@ import net.tomp2p.storage.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.indexes.DSTBlock;
 import uzh.tomdb.db.indexes.IndexedValue;
@@ -52,16 +54,21 @@ public class IndexScan {
 	 * Save the elaborated table Blocks to avoid duplicate gets.
 	 */
 	private Set<String> elaboratedBlocks = new HashSet<>();
+	private int expHash;
 	
 	public IndexScan(Select select, ConditionsHandler handler) {
 		this.select = select;
 		this.condHandler = handler;
+		this.expHash = select.hashCode();
 	}
 	
 	/**
 	 * Starts the necessary executions of indexscan if the index exists. 
 	 */
 	public void start() throws MalformedSQLQuery, ClassNotFoundException, IOException {
+		
+		logger.trace("INDEXSCAN-WHOLE", "BEGIN", Statement.experiment, expHash);
+		
 		boolean indexExistence = false;
 		
 		/**
@@ -136,9 +143,11 @@ public class IndexScan {
 			break;
 		}
 		
-		List<DSTBlock> rowsBlocks = Utils.splitRange(from, to, select.getTi().getDSTRange(), cond.getColumn());
+		List<DSTBlock> dstBlocks = Utils.splitRange(from, to, select.getTi().getDSTRange(), select.getTabName()+":"+cond.getColumn());
 		
-		getDST(rowsBlocks, new HashSet<String>());
+		logger.trace("INDEXSCAN-GET-DST", "BEGIN", Statement.experiment, expHash, condition.hashCode(), dstBlocks.size());	
+		
+		getDST(dstBlocks, new HashSet<String>(), new AtomicInteger(0), condition.hashCode());
 		
 	}
 	
@@ -163,7 +172,7 @@ public class IndexScan {
 	 * 
 	 * @param rowIds
 	 */
-	private void tableScan(List<Integer> rowIds) {
+	private void tableScan(final List<Integer> rowIds) {
 		List<Block> blocks = new ArrayList<>();
 		
 		for (Integer id: rowIds) {
@@ -174,11 +183,12 @@ public class IndexScan {
 				blocks.add(block);
 			}
 		}
-		
-		for (Block block2: blocks) {
-			logger.debug(block2.toString());
+	
+		final AtomicInteger counter = new AtomicInteger(blocks.size());
+		if (counter.get() > 0) {
+			logger.trace("INDEXSCAN-GET-TABLE", "BEGIN", Statement.experiment, expHash, rowIds.hashCode(), counter.get());
 		}
-		
+
 		for (Block block : blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
@@ -193,6 +203,12 @@ public class IndexScan {
 						// add exception?
 						logger.debug("GET from Table: Get failed!");
 						condHandler.removeFromFutureManager(future.toString());
+					}
+					if (counter.decrementAndGet() == 0) {
+						logger.trace("INDEXSCAN-GET-TABLE", "END", Statement.experiment, expHash, rowIds.hashCode());
+					}
+					if (condHandler.getFutureManager().isEmpty()) {
+						logger.trace("INDEXSCAN-WHOLE", "END", Statement.experiment, expHash);
 					}
 				}	
 			});
@@ -217,7 +233,7 @@ public class IndexScan {
 	 * @param blocks
 	 * @param already
 	 */
-	private void getDST(List<DSTBlock> blocks, final Set<String> already) throws ClassNotFoundException, IOException {
+	private void getDST(List<DSTBlock> blocks, final Set<String> already, final AtomicInteger counter, final int condHash) throws ClassNotFoundException, IOException {
 		 	
 		 	for (final DSTBlock block: blocks) {
 	          
@@ -232,6 +248,7 @@ public class IndexScan {
 	          // get the interval
 	          FutureDHT future = select.getPeer().get(key).setAll().start();
 	          condHandler.addToFutureManager(future.toString());
+	          counter.incrementAndGet();
 	          future.addListener(new BaseFutureAdapter<FutureDHT>() {
 	              @Override
 	              public void operationComplete(FutureDHT future) throws Exception {
@@ -246,13 +263,17 @@ public class IndexScan {
 	                      //IF block is full, we need to get children
 	                      if (map.size() == select.getTi().getDSTRange()) {
 	                          logger.debug(block + " FULL!");
-	                          getDST(block.split(), already);
+	                          logger.trace("INDEXSCAN-GET-DST", "RECURSION", Statement.experiment, expHash, condHash, 2);	
+	                          getDST(block.split(), already, counter, condHash);
 	                      }
 	                      
 	                  } else {
 	                      //add exception?
 	                	  condHandler.removeFromFutureManager(future.toString());
 	                      logger.debug("GET DST: Get failed!");
+	                  }
+	                  if (counter.decrementAndGet() == 0) {
+	                	  logger.trace("INDEXSCAN-GET-DST", "END", Statement.experiment, expHash, condHash);
 	                  }
 	              }
 	          });          

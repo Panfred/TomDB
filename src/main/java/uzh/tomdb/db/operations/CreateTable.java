@@ -146,9 +146,6 @@ public class CreateTable extends Operation implements Operations{
 						throw new MalformedSQLQuery("CREATE TABLE Options SQL error with STORAGE.");
 				}
 				break;
-			case "primarykey":
-				retOptions.put("primarykey", spl[1]);
-				break;
 			case "index":
 				indexes.add(spl[1]);
 				break;

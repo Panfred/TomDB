@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableColumns;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
@@ -95,23 +97,25 @@ public class JoinsHandler implements Handler{
 	 * Save the elaborated table Blocks to avoid duplicate gets.
 	 */
 	private Set<String> elaboratedBlocks = new HashSet<>();
+	private int expHash;
 	
 	public JoinsHandler(Select select) throws MalformedSQLQuery {
 		this.select = select;
 		tabNames = select.getTabNames();
+		this.expHash = select.hashCode();
 		init();
 	}
 	
 	/**
-	 * Internal parser to create JoinCondition objects out of the where conditions. A where-join conditions has the form of: tablename:columnname = tablename2:columnname2.
+	 * Internal parser to create one JoinCondition object out of the where conditions. A where-join conditions has the form of: tablename:columnname = tablename2:columnname2.
 	 * At the end, a ConditionsHandler with the remaining where conditions is created.
 	 */
 	private void init() throws MalformedSQLQuery {
 		
 		whereConditions = select.getWhereConditions();
 		if (whereConditions.size() > 0) {
-			for (int i = 0; i < whereConditions.size(); i++) {
-				WhereCondition cond = whereConditions.get(i);
+			
+				WhereCondition cond = whereConditions.get(0);
 				
 				if (cond.isJoinCondition()) {
 					JoinCondition jc = new JoinCondition();
@@ -130,11 +134,11 @@ public class JoinsHandler implements Handler{
 					}
 					jc.setColumnTwo(two[1]);
 					joinCondition = jc;
-					whereConditions.remove(i);
+					whereConditions.remove(0);
 				} else {
-					throw new MalformedSQLQuery("Wrong JOIN condition, just one join supported!");
+					throw new MalformedSQLQuery("Wrong JOIN condition!");
 				}
-			}
+			
 		} else {
 			throw new MalformedSQLQuery("No join condition!");
 		}
@@ -151,6 +155,8 @@ public class JoinsHandler implements Handler{
 		Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
 		Map<Number160, Data> tabRows = DBPeer.getTabRows();
 		Map<Number160, Data> tabIndexes = DBPeer.getTabIndexes();
+		
+		logger.trace("JOIN-WHOLE", "BEGIN", Statement.experiment, expHash);
 		
 		for (String tabName: select.getTabNames()) {
 			Number160 tabKey = Number160.createHash(tabName);
@@ -227,16 +233,15 @@ public class JoinsHandler implements Handler{
 			
 		}
 
-		removeFromFutureManager(future);
-		
-		checkMatches();
+		removeFromFutureManager(future);	
 		
 		/**
-		 * Poison the blocking queue.
+		 * Start matching only when all rows are returned.
 		 */
 		if (futureManager.isEmpty()) {
-			select.addToResultSet(new Row(-1));
+			checkMatches();
 		}
+		
 	}
 	
 	/**
@@ -255,6 +260,44 @@ public class JoinsHandler implements Handler{
 			}
 		}
 		
+		/**
+		 * Poison the blocking queue.
+		 */
+		logger.trace("JOIN-WHOLE", "END", Statement.experiment, expHash);
+		select.addToResultSet(new Row(-1));
+		
+	}
+	
+	/**
+	 * For every row IDs of table one, a new joined row for every row IDs of table two is created and sent to ResultSet.
+	 * 
+	 * @param rowOne
+	 * @param rowTwo
+	 */
+	private void joinRows(List<Integer> oneIds, List<Integer> twoIds) throws NumberFormatException, MalformedSQLQuery {
+		String tabOne = tabNames.get(0);
+		String tabTwo = tabNames.get(1);
+		
+		for (Integer oneId: oneIds) {
+			for (Integer twoId: twoIds) {
+				List<String> row = new ArrayList<>();
+				row.addAll(rows.get(tabOne).get(oneId).getRow());
+				row.addAll(rows.get(tabTwo).get(twoId).getRow());
+				Row joinRow = new Row("join", 0, row, rowCols);
+				
+				if(!elaboratedRows.contains(joinRow.toString())) {
+					elaboratedRows.add(joinRow.toString());
+					conditionsHandler.filterJoinedRow(joinRow);
+				}
+			}	
+		}
+		for (Integer oneId: oneIds) {
+			rows.get(tabOne).remove(oneId);
+		}
+		for (Integer twoId: twoIds) {
+			rows.get(tabTwo).remove(twoId);
+		}
+
 	}
 	
 	/**
@@ -300,7 +343,7 @@ public class JoinsHandler implements Handler{
 	 * @param tabOneRowIds
 	 * @param tabTwoRowIds
 	 */
-	private void tableScans(List<Integer> tabOneRowIds, List<Integer> tabTwoRowIds) {
+	private void tableScans(final List<Integer> tabOneRowIds, final List<Integer> tabTwoRowIds) {
 		List<Block> blocks = new ArrayList<>();
 		
 		for (Integer id: tabOneRowIds) {
@@ -320,6 +363,11 @@ public class JoinsHandler implements Handler{
 			}
 		}
 		
+		final AtomicInteger counter = new AtomicInteger(blocks.size());
+		if (counter.get() > 0) {
+			logger.trace("JOIN-GET-TABLE", "BEGIN", Statement.experiment, expHash, tabOneRowIds.hashCode()+tabTwoRowIds.hashCode(), counter.get());
+		}
+		
 		for (Block block: blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
@@ -335,37 +383,11 @@ public class JoinsHandler implements Handler{
 						logger.debug("GET from Table: Get failed!");
 						removeFromFutureManager(future.toString());
 					}
+					if (counter.decrementAndGet() == 0) {
+						logger.trace("JOIN-GET-TABLE", "END", Statement.experiment, expHash, tabOneRowIds.hashCode()+tabTwoRowIds.hashCode());
+					}
 				}	
 			});
-		}
-
-	}
-	
-	/**
-	 * For every row IDs of table one, a new joined row for every row IDs of table two is created and sent to ResultSet.
-	 * 
-	 * @param rowOne
-	 * @param rowTwo
-	 */
-	private void joinRows(List<Integer> oneIds, List<Integer> twoIds) throws NumberFormatException, MalformedSQLQuery {
-		String tabOne = tabNames.get(0);
-		String tabTwo = tabNames.get(1);
-		
-		for (Integer oneId: oneIds) {
-			for (Integer twoId: twoIds) {
-				List<String> row = new ArrayList<>();
-				row.addAll(rows.get(tabOne).get(oneId).getRow());
-				row.addAll(rows.get(tabTwo).get(twoId).getRow());
-				Row joinRow = new Row("join", 0, row, rowCols);
-				
-				if(!elaboratedRows.contains(joinRow.toString())) {
-					elaboratedRows.add(joinRow.toString());
-					conditionsHandler.filterJoinedRow(joinRow);
-				}
-				
-				rows.get(tabOne).remove(oneId);
-				rows.get(tabTwo).remove(twoId);
-			}
 		}
 
 	}

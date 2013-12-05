@@ -45,9 +45,9 @@ public class TomDB {
     public static void startDHT() {
     	if (peers.length == 0) {
     		createLocalPeers(1);
-    		logger.info("Succesfully created the broadstrapping peer with the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
+    		logger.info("Succesfully created the bootstrapping peer with the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
     	} else {
-    		logger.info("The broadstrapping peer has the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
+    		logger.info("The bootstrapping peer has the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
     	}
     }
     
@@ -80,10 +80,10 @@ public class TomDB {
         	if (peers.length == 0) {
         		createLocalPeers(1);
         		DBpeer = new DBPeer(peers);
-        		logger.info("Succesfully created the broadstrapping peer and the DB peer with the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
+        		logger.info("Succesfully created the bootstrapping peer and the DB peer with the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
         	} else {
         		DBpeer = new DBPeer(peers);
-        		logger.info("Succesfully created the DB peer and the broadstrapping peer has the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
+        		logger.info("Succesfully created the DB peer and the bootstrapping peer has the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
         	}
             return DBpeer.getConnection();
         } else {

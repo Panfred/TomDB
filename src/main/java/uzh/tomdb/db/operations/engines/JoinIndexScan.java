@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import net.tomp2p.futures.BaseFutureAdapter;
 import net.tomp2p.futures.FutureDHT;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.indexes.DSTBlock;
 import uzh.tomdb.db.operations.Select;
 import uzh.tomdb.db.operations.helpers.JoinCondition;
@@ -40,11 +42,13 @@ public class JoinIndexScan {
 	 * The join condition to know for which column an indexscan is necessary.
 	 */
 	private JoinCondition jCond;
+	private int expHash;
 	
 	public JoinIndexScan(Select select, JoinsHandler handler, JoinCondition jCond) {
 		this.select = select;
 		this.handler = handler;
 		this.jCond = jCond;
+		this.expHash = select.hashCode();
 	}
 	
 	/**
@@ -52,9 +56,11 @@ public class JoinIndexScan {
 	 */
 	public void start() throws MalformedSQLQuery, ClassNotFoundException, IOException {
 		
-		List<DSTBlock> rowsBlocks = Utils.splitRange(select.getTi().getMin(jCond.getColumn(select.getTabName())), select.getTi().getMax(jCond.getColumn(select.getTabName())), select.getTi().getDSTRange(), jCond.getColumn(select.getTabName()));
+		List<DSTBlock> dstBlocks = Utils.splitRange(select.getTi().getMin(jCond.getColumn(select.getTabName())), select.getTi().getMax(jCond.getColumn(select.getTabName())), select.getTi().getDSTRange(), select.getTabName()+":"+jCond.getColumn(select.getTabName()));
 		
-		getDST(rowsBlocks, new HashSet<String>());
+		logger.trace("JOIN-GET-INDEXSCAN", "BEGIN", Statement.experiment, expHash, dstBlocks.size());
+		
+		getDST(dstBlocks, new HashSet<String>(), new AtomicInteger(0));
 		
 	}
 	
@@ -64,7 +70,7 @@ public class JoinIndexScan {
 	 * @param blocks
 	 * @param already
 	 */
-	private void getDST(List<DSTBlock> blocks, final Set<String> already) throws ClassNotFoundException, IOException {
+	private void getDST(List<DSTBlock> blocks, final Set<String> already, final AtomicInteger counter) throws ClassNotFoundException, IOException {
 	 	
 	 	for (final DSTBlock block: blocks) {
           
@@ -79,6 +85,7 @@ public class JoinIndexScan {
           // get the interval
           FutureDHT future = select.getPeer().get(key).setAll().start();
           handler.addToFutureManager(future.toString());
+          counter.incrementAndGet();
           future.addListener(new BaseFutureAdapter<FutureDHT>() {
               @Override
               public void operationComplete(FutureDHT future) throws Exception {
@@ -92,13 +99,17 @@ public class JoinIndexScan {
                       //IF block is full, we need to get children
                       if (map.size() == select.getTi().getDSTRange()) {
                           logger.debug(block + " FULL!");
-                          getDST(block.split(), already);
+                          logger.trace("JOIN-GET-INDEXSCAN", "RECURSION", Statement.experiment, expHash, 2);	
+                          getDST(block.split(), already, counter);
                       }
                       
                   } else {
                       //add exception?
                 	  handler.removeFromFutureManager(future.toString());
                       logger.debug("GET DST: Get failed!");
+                  }
+                  if (counter.decrementAndGet() == 0) {
+                	  logger.trace("JOIN-GET-INDEXSCAN", "END", Statement.experiment, expHash);
                   }
               }
           });          

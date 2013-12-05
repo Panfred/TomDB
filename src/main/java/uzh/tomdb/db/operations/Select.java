@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uzh.tomdb.api.ResultSet;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableColumns;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
@@ -53,6 +54,9 @@ public class Select extends Operation implements Operations {
 	 * List of table names used for the JOIN.
 	 */
 	private List<String> tabNames;
+	/**
+	 * Temporary results used by DELETE, UPDATE instead of ResultSet.
+	 */
 	private TempResults tmpRes;
 	
 	/**
@@ -81,7 +85,7 @@ public class Select extends Operation implements Operations {
 	}
 	
 	/**
-	 * For internal SELECTs, used by the JOIN.
+	 * For internal SELECTs, used by JOIN.
 	 */
 	public Select(String tabName, TableRows tr, TableIndexes ti, TableColumns tc) {
 		super();
@@ -131,7 +135,9 @@ public class Select extends Operation implements Operations {
 				ti = (TableIndexes) tabIndexes.get(tabKey).getObject();
 
 				resultSet = new ResultSet();
-
+				
+				logger.trace("SELECT-WHOLE", "BEGIN", Statement.experiment, this.hashCode());
+				
 				new QueryExecuter(this);
 			}
 		} catch (ClassNotFoundException | IOException e) {
@@ -150,6 +156,9 @@ public class Select extends Operation implements Operations {
 		if (tmpRes != null) {
 			tmpRes.addRow(row);
 		} else {
+			if (row.getRowID() < 0) {
+				logger.trace("SELECT-WHOLE", "END", Statement.experiment, this.hashCode());
+			}
 			resultSet.addRow(row);
 		}
 	}

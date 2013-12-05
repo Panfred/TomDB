@@ -13,6 +13,7 @@ import net.tomp2p.storage.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableColumns;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
@@ -44,6 +45,7 @@ public class Insert extends Operation implements Operations{
 	private FreeBlocksHandler freeBlocksHandler;
     private List<String> indexes;
     private List<String> uniqueIndexes;
+    private boolean done = false;
     
 	public Insert(String tabName, List<String> values) {
         super();
@@ -103,12 +105,13 @@ public class Insert extends Operation implements Operations{
 
     	int rowId = tr.incrementAndGetRowsNum();
     	int blockSize = tr.getBlockSize();
-    	
+
     	Row row = getRow(rowId);
     	if (putIndex(row)) {
     		Block block = Utils.getLastBlock(rowId, blockSize, tabName);
             
             FutureDHT future = peer.put(Number160.createHash(block.toString())).setData(new Number160(rowId), new Data(row)).start();
+            logger.trace("INSERT-PUT-INSERTIONORDER", "BEGIN", Statement.experiment, future.hashCode(), this.hashCode());
             future.addListener(new BaseFutureAdapter<FutureDHT>() {
                 @Override
                 public void operationComplete(FutureDHT future) throws Exception {
@@ -118,6 +121,8 @@ public class Insert extends Operation implements Operations{
                         //add exception?
                         logger.debug("INSERT (insertion order): Put failed!");
                     }
+                    done = true;
+                    logger.trace("INSERT-PUT-INSERTIONORDER", "END", Statement.experiment, future.hashCode());
                 }
             });
     	} else {
@@ -156,6 +161,7 @@ public class Insert extends Operation implements Operations{
     		Row row = getRow(rowId);
     		if (putIndex(row)) {
     			FutureDHT future = peer.put(blockKey).setData(new Number160(rowId), new Data(row)).start();
+    			logger.trace("INSERT-PUT-FULLBLOCKS", "BEGIN", Statement.experiment, future.hashCode(), this.hashCode());
                 future.addListener(new BaseFutureAdapter<FutureDHT>() {
                     @Override
                     public void operationComplete(FutureDHT future) throws Exception {
@@ -165,6 +171,8 @@ public class Insert extends Operation implements Operations{
                             //add exception?
                             logger.debug("INSERT (full blocks): Put failed!");
                         }
+                        done = true;
+                        logger.trace("INSERT-PUT-FULLBLOCKS", "END", Statement.experiment, future.hashCode());
                     }
                 });
     		} else {
@@ -183,11 +191,11 @@ public class Insert extends Operation implements Operations{
     private boolean putIndex(Row row) throws MalformedSQLQuery, IOException, ClassNotFoundException {
 		boolean success = false;
     	if (indexes.size() > 0) {
-			IndexHandler ih = new IndexHandler(peer);
+			IndexHandler ih = new IndexHandler(peer, this.hashCode());
 			for (String index: indexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), index);
+					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index);
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
@@ -196,11 +204,11 @@ public class Insert extends Operation implements Operations{
 		}
 		
 		if (uniqueIndexes.size() > 0) {
-			UniqueIndexHandler ih = new UniqueIndexHandler(peer);
+			UniqueIndexHandler ih = new UniqueIndexHandler(peer, this.hashCode());
 			for (String index: uniqueIndexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), index);
+					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index);
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
@@ -237,6 +245,10 @@ public class Insert extends Operation implements Operations{
     public String getTabName() {
 		return tabName;
 	}
+    
+    public boolean getDone() {
+    	return done;
+    }
     
 	/**
 	 * Empty init from Interface.

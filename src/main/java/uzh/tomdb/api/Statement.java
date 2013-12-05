@@ -32,15 +32,17 @@ public class Statement {
      * @param sql 
      *          the SQL Query
      */
-    public Statement execute(String sql) {
+    public boolean execute(String sql) {
         try {
             parser.parse(sql);
         } catch (MalformedSQLQuery e) {
             logger.warn("SQL Query Error", e);
+            return false;
         } catch (Exception e) {
             logger.error("Statement Error", e);
+            return false;
         }
-        return this;
+        return true;
     }
     
     /**

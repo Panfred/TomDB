@@ -4,6 +4,7 @@ package uzh.tomdb.db.operations;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import net.tomp2p.futures.BaseFutureAdapter;
 import net.tomp2p.futures.FutureDHT;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableColumns;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
@@ -43,6 +45,7 @@ public class Update extends Operation implements Operations, TempResults{
      * Scan type (tablescan/indexscan) defined in the OPTIONS statement.
      */
     private String scanType;
+    private AtomicInteger futureHandler = new AtomicInteger(0);
 
     public Update(String tabName, List<SetCondition> setConditions, List<WhereCondition> whereConditions, String scanType) {
     	super();
@@ -72,6 +75,8 @@ public class Update extends Operation implements Operations, TempResults{
 			logger.error("Data error", e);
 		} 
 			
+		logger.trace("UPDATE-WHOLE", "BEGIN", Statement.experiment, this.hashCode());
+		
     	new Select(tabName, tr, ti, tc, whereConditions, scanType, this).init();
     }
 
@@ -84,8 +89,6 @@ public class Update extends Operation implements Operations, TempResults{
 	public void addRow(Row row) {
     	if (row.getRowID() > 0) {
 			executeUpdate(row);
-		} else {
-			logger.debug("UPDATE completed");
 		}		
 	}
     
@@ -109,8 +112,10 @@ public class Update extends Operation implements Operations, TempResults{
     	
     	List<Block> blocks = Utils.getBlocks(row.getRowID(), row.getRowID(), tr.getRowsNum(), tr.getBlockSize(), tabName);
 		Number160 blockKey = blocks.get(0).getHash();
-		
+
 		FutureDHT future = peer.put(blockKey).setData(new Number160(row.getRowID()), data).start();
+		futureHandler.incrementAndGet();
+		logger.trace("UPDATE-PUT-ROW", "BEGIN", Statement.experiment, future.hashCode(), this.hashCode());
 		future.addListener(new BaseFutureAdapter<FutureDHT>() {
             @Override
             public void operationComplete(FutureDHT future) throws Exception {
@@ -119,6 +124,11 @@ public class Update extends Operation implements Operations, TempResults{
                 } else {
                     //add exception?
                     logger.debug("UPDATE Insert updated Row: Put failed!");
+                }
+                logger.trace("UPDATE-PUT-ROW", "END", Statement.experiment, future.hashCode());
+                if (futureHandler.decrementAndGet() == 0) {
+                	logger.debug("UPDATE completed");
+        			logger.trace("UPDATE-WHOLE", "END", Statement.experiment, this.hashCode());
                 }
             }
         });

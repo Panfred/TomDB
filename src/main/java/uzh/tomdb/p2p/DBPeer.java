@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uzh.tomdb.api.Connection;
+import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
 
@@ -118,6 +119,7 @@ public class DBPeer {
      */
     public static void fetchTableColumns() {
 		FutureDHT future = peer.get(Number160.createHash("TableColumnsMetaData")).setAll().start();
+		logger.trace("METADATA-FETCH-COLUMNS", "BEGIN", Statement.experiment, future.hashCode());
 		future.awaitUninterruptibly();
 		if (future.isSuccess()) {
 			tabColumns = future.getDataMap();
@@ -126,6 +128,7 @@ public class DBPeer {
 			// add exception?
 			logger.debug("Failure fetching Table COLUMNS!");
 		}
+		logger.trace("METADATA-FETCH-COLUMNS", "END", Statement.experiment, future.hashCode());
     }
     
     /**
@@ -133,6 +136,7 @@ public class DBPeer {
      */
     public static void fetchTableRows() {
         FutureDHT future = peer.get(Number160.createHash("TableRowsMetaData")).setAll().start();
+        logger.trace("METADATA-FETCH-ROWS", "BEGIN", Statement.experiment, future.hashCode());
         future.awaitUninterruptibly();
         if(future.isSuccess()) {
             tabRows = future.getDataMap();
@@ -153,6 +157,7 @@ public class DBPeer {
             //add exception?
             logger.debug("Failure fetching Table ROWS!");
         }
+        logger.trace("METADATA-FETCH-ROWS", "END", Statement.experiment, future.hashCode());
     }
     
     /**
@@ -160,6 +165,7 @@ public class DBPeer {
      */
     public static void fetchTableIndexes() {
         FutureDHT future = peer.get(Number160.createHash("TableIndexesMetaData")).setAll().start();
+        logger.trace("METADATA-FETCH-INDEXES", "BEGIN", Statement.experiment, future.hashCode());
         future.awaitUninterruptibly();
         if(future.isSuccess()) {
             tabIndexes = future.getDataMap();
@@ -172,14 +178,15 @@ public class DBPeer {
             //add exception?
             logger.debug("Failure fetching Table INDEXES!");
         }
+        logger.trace("METADATA-FETCH-INDEXES", "END", Statement.experiment, future.hashCode());
     }
     
     /**
      * Non-blocking operation to put the MetaData in the DHT.
      */
     public static void updateTableColumns() {
-        
         FutureDHT future = peer.put(Number160.createHash("TableColumnsMetaData")).setDataMap(tabColumns).start();
+        logger.trace("METADATA-UPDATE-COLUMNS", "BEGIN", Statement.experiment, future.hashCode());
         future.addListener(new BaseFutureAdapter<FutureDHT>() {
             @Override
             public void operationComplete(FutureDHT future) throws Exception {
@@ -189,6 +196,7 @@ public class DBPeer {
                     //add exception?
                     logger.debug("Failed updateing COLUMNS metadata!");
                 }
+                logger.trace("METADATA-UPDATE-COLUMNS", "END", Statement.experiment, future.hashCode());
             }
         });
         
@@ -210,6 +218,7 @@ public class DBPeer {
     		}
         }
         FutureDHT future = peer.put(Number160.createHash("TableRowsMetaData")).setDataMap(tabRows).start();
+        logger.trace("METADATA-UPDATE-ROWS", "BEGIN", Statement.experiment, future.hashCode());
         future.addListener(new BaseFutureAdapter<FutureDHT>() {
             @Override
             public void operationComplete(FutureDHT future) throws Exception {
@@ -220,6 +229,7 @@ public class DBPeer {
                     //add exception?
                     logger.debug("Failed updateing ROWS metadata!");
 				}
+                logger.trace("METADATA-UPDATE-ROWS", "END", Statement.experiment, future.hashCode());
 			}
 		});
 
@@ -231,6 +241,7 @@ public class DBPeer {
     public static void updateTableIndexes() {
 
         FutureDHT future = peer.put(Number160.createHash("TableIndexesMetaData")).setDataMap(tabIndexes).start();
+        logger.trace("METADATA-UPDATE-INDEXES", "BEGIN", Statement.experiment, future.hashCode());
         future.addListener(new BaseFutureAdapter<FutureDHT>() {
             @Override
             public void operationComplete(FutureDHT future) throws Exception {
@@ -240,6 +251,7 @@ public class DBPeer {
                     //add exception?
                     logger.debug("Failed updateing INDEXES metadata!");
 				}
+                logger.trace("METADATA-UPDATE-INDEXES", "END", Statement.experiment, future.hashCode());
 			}
 		});
 

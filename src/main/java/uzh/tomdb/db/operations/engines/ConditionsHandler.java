@@ -13,8 +13,8 @@ import java.util.Set;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 import uzh.tomdb.db.operations.Select;
 import uzh.tomdb.db.operations.helpers.AndCondition;
@@ -31,7 +31,7 @@ import uzh.tomdb.parser.Tokens;
  * @author Francesco Luminati
  */
 public class ConditionsHandler implements Handler{
-	private final Logger logger = LoggerFactory.getLogger(ConditionsHandler.class);
+//	private final Logger logger = LoggerFactory.getLogger(ConditionsHandler.class);
 	/**
 	 * Select object to get the MetaData information and to return the result rows.
 	 */
@@ -88,6 +88,15 @@ public class ConditionsHandler implements Handler{
 	public ConditionsHandler(Select select, List<WhereCondition> conditions) throws MalformedSQLQuery {
 		this.select = select;
 		this.conditions = conditions;
+		
+		//Set columns in resultRowCols!!
+		if (!select.isAllColumns()) {
+			Map<String, Integer> cols = new LinkedHashMap<>();
+			for (int i = 0; i < select.getColumns().size(); i++) {
+				cols.put(select.getColumns().get(i), i);
+			}
+			resultRowCols = cols;
+		}
 		
 		init();
 	}
@@ -339,7 +348,13 @@ public class ConditionsHandler implements Handler{
 		if (select.isAllColumns()) {
 			return row;
 		} else {	
-			Row tmpRow = new Row(select.getTabName(), row.getRowID(), resultRowCols);
+			String tabName = "";
+			if (select.getTabName() == null) {
+				tabName = "join";
+			} else {
+				tabName = select.getTabName();
+			}
+			Row tmpRow = new Row(tabName, row.getRowID(), resultRowCols);
 			for (int i = 0; i < select.getColumns().size(); i++) {
 				tmpRow.setCol(i, row.getCol(select.getColumns().get(i)));
 			}
@@ -356,7 +371,11 @@ public class ConditionsHandler implements Handler{
 	public void removeFromFutureManager(String future) {
 		futureManager.remove(future);
 	}
-
+	
+	public Set<String> getFutureManager() {
+		return futureManager;
+	}
+	
 	public List<Conditions> getAndCond() {
 		return andCond.getConditions();
 	}
