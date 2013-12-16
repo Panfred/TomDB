@@ -3,6 +3,7 @@ package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
+import uzh.tomdb.db.indexes.IndexHandler;
 import uzh.tomdb.db.operations.CreateTable;
 import uzh.tomdb.db.operations.Delete;
 import uzh.tomdb.db.operations.Insert;
@@ -106,6 +108,7 @@ public class QueryEngine {
         String tabName = null;
         Number160 tabKey = null;
         FreeBlocksHandler freeBlocks = null;
+        Map<String, IndexHandler> indexHandlers = new HashMap<>();
         TableRows tr = null;
         TableIndexes ti = null;
         
@@ -123,6 +126,12 @@ public class QueryEngine {
     			} catch (ClassNotFoundException | IOException e) {
     				logger.error("Data error", e);
     			}
+            	for (String index: ti.getIndexes()) {
+            		indexHandlers.put(index, new IndexHandler(ins.getPeer()));
+            	}
+            	for (String index: ti.getUnivocalIndexes()) {
+            		indexHandlers.put(index, new IndexHandler(ins.getPeer()));
+            	}
             } else if (!tabName.equals(ins.getTabName())) {
     			try {
     				tabRows.put(tabKey, new Data(tr));
@@ -133,12 +142,19 @@ public class QueryEngine {
     				ti =  (TableIndexes) tabIndexes.get(tabKey).getObject();
     				freeBlocks.update();
                 	freeBlocks = new FreeBlocksHandler(tabName);
+                	indexHandlers.clear();
+                	for (String index: ti.getIndexes()) {
+                		indexHandlers.put(index, new IndexHandler(ins.getPeer()));
+                	}
+                	for (String index: ti.getUnivocalIndexes()) {
+                		indexHandlers.put(index, new IndexHandler(ins.getPeer()));
+                	}
     			} catch (ClassNotFoundException | IOException e) {
     				logger.error("Data error", e);
     			}
             } 
             
-            ins.init(freeBlocks, tr, ti);
+            ins.init(freeBlocks, indexHandlers, tr, ti);
             
         }
         

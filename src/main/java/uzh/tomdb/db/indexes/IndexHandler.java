@@ -2,6 +2,7 @@
 package uzh.tomdb.db.indexes;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,11 +32,11 @@ import uzh.tomdb.db.operations.helpers.Utils;
 public class IndexHandler {
 	private final Logger logger = LoggerFactory.getLogger(IndexHandler.class);
 	private final Peer peer;
+	private Map<Integer, IndexedValue> alreadyIndexed = new HashMap<>();
 	private int expHash;
 	
-	public IndexHandler(Peer peer, int expHash) {
+	public IndexHandler(Peer peer) {
 		this.peer = peer;
-		this.expHash = expHash;
 	}
 	
 	/**
@@ -47,15 +48,26 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	public boolean put(int rowId, int indexedVal, int upperBound, String tabCol) throws IOException, ClassNotFoundException {
+	public boolean put(int rowId, int indexedVal, int upperBound, String tabCol, boolean univocal, int expHash) throws IOException, ClassNotFoundException {
+		this.expHash = expHash;
+		
 		IndexedValue iv = null;
-		iv = checkIndex(indexedVal, upperBound, tabCol);
+		
+		if (alreadyIndexed.containsKey(indexedVal)) {
+			iv = alreadyIndexed.get(indexedVal);
+		} else {
+			iv = checkIndex(indexedVal, upperBound, tabCol);
+		}
 		
 		if (iv == null) {
 			iv = new IndexedValue(indexedVal, rowId);
 		} else {
+			if (univocal) {
+				return false;
+			}
 			iv.addRowId(rowId);
 		}
+		alreadyIndexed.put(indexedVal, iv);
 		putDST(iv, upperBound, tabCol);
 		return true;
 	}
@@ -69,12 +81,19 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	public void remove(int rowId, int indexedVal, int upperBound, String tabCol) throws ClassNotFoundException, IOException {
+	public void remove(int rowId, int indexedVal, int upperBound, String tabCol, int expHash) throws ClassNotFoundException, IOException {
+		this.expHash = expHash;
+		
 		IndexedValue iv = null;
+		List<Integer> rowIds = new ArrayList<>();
 		
 		iv = checkIndex(indexedVal, upperBound, tabCol);
 		
-		List<Integer> rowIds = iv.getRowIds();
+		if (iv != null) {
+			rowIds = iv.getRowIds();
+		} else {
+			logger.error("Indexed value not found in the DST!");
+		}
 		
 		if (rowIds.size() > 1) {
 			rowIds.remove((Object) rowId);
@@ -94,7 +113,7 @@ public class IndexHandler {
 	 * @param column name
 	 * @return IndexedValue object
 	 */
-	protected IndexedValue checkIndex(int indexedVal, int upperBound, String tabCol) throws ClassNotFoundException, IOException {
+	private IndexedValue checkIndex(int indexedVal, int upperBound, String tabCol) throws ClassNotFoundException, IOException {
 		
 		Map<Integer, IndexedValue> results = getDSTblocking(indexedVal, indexedVal, upperBound, tabCol);
 		
@@ -112,8 +131,8 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	protected void putDST(IndexedValue indexedVal, int upperBound, String tabCol) throws IOException {
-	  
+	private void putDST(IndexedValue indexedVal, int upperBound, String tabCol) throws IOException {
+			
 		  DSTBlock block = new DSTBlock(0, upperBound, tabCol);
 		  
 		  final AtomicInteger counter = new AtomicInteger(Utils.getDSTHeight(upperBound));
@@ -195,13 +214,13 @@ public class IndexHandler {
       getDST(rowsBlocks, upperBound, new HashSet<String>(), results, counter, this); 
       
       while (counter.get() > 0) {
-    	    synchronized (this) { 
-    	        try {
+  	    synchronized (this) { 
+  	        try {
 					this.wait();
 				} catch (InterruptedException e) {
 					logger.error("Wait interrupted", e);
 				}
-    	    }
+  	    }
       }
       
       logger.trace("INDEXHANDLER-GET-DST", "END", Statement.experiment, expHash);
@@ -244,6 +263,7 @@ public class IndexHandler {
 			future.addListener(new BaseFutureAdapter<FutureDHT>() {
 				@Override
 				public void operationComplete(FutureDHT future) throws Exception {
+					
 					if (future.isSuccess()) {
 						logger.debug("GET DST: Get succeed!");
 
@@ -270,13 +290,11 @@ public class IndexHandler {
 						// add exception?
 						logger.debug("GET DST: Get failed!");
 					}
-					
 					if (counter.decrementAndGet() == 0) {
 						synchronized (ih) {
 							ih.notify();
 						}
 					}
-					
 				}	
 			});
 		}

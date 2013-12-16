@@ -56,8 +56,6 @@ public class Delete extends Operation implements Operations, TempResults{
     	this.scanType = scanType;
         this.whereConditions = whereOperations;
         
-        freeBlocksHandler = new FreeBlocksHandler(tabName);
-        ih = new IndexHandler(peer, this.hashCode());
     }
     
     /**
@@ -69,6 +67,9 @@ public class Delete extends Operation implements Operations, TempResults{
     	Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
 		Map<Number160, Data> tabRows = DBPeer.getTabRows();
 		Map<Number160, Data> tabIndexes = DBPeer.getTabIndexes();
+		
+		freeBlocksHandler = new FreeBlocksHandler(tabName);
+        ih = new IndexHandler(peer);
 
 		try {
 			tc = (TableColumns) tabColumns.get(tabKey).getObject();
@@ -112,6 +113,13 @@ public class Delete extends Operation implements Operations, TempResults{
 		List<Block> blocks = Utils.getBlocks(row.getRowID(), row.getRowID(), tr.getRowsNum(), tr.getBlockSize(), tabName);
 		Number160 blockKey = blocks.get(0).getHash();
 		
+		try {
+			addToFreeBlocks(row, blockKey);
+			updateIndexes(row);
+		} catch (ClassNotFoundException | IOException e) {
+			logger.error("Data error", e);
+		} 
+		
 		FutureDHT future = peer.put(blockKey).setData(new Number160(row.getRowID()), data).start();
 		futureHandler.incrementAndGet();
 		logger.trace("DELETE-PUT-ROW", "BEGIN", Statement.experiment, future.hashCode(), this.hashCode());
@@ -132,14 +140,7 @@ public class Delete extends Operation implements Operations, TempResults{
                 }
             }
         });
-		
-		try {
-			addToFreeBlocks(row, blockKey);
-			updateIndexes(row);
-		} catch (ClassNotFoundException | IOException e) {
-			logger.error("Data error", e);
-		} 
-		
+
 	}
 	
 	/**
@@ -171,7 +172,7 @@ public class Delete extends Operation implements Operations, TempResults{
 		for (String col: ti.getIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
-				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col);
+				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col, this.hashCode());
 				//TODO SET index Min Max ???
 			} catch (NumberFormatException e) {
 				logger.error("Indexed Column is not an INT", e);
@@ -180,7 +181,7 @@ public class Delete extends Operation implements Operations, TempResults{
 		for (String col: ti.getUnivocalIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
-				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col);
+				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col, this.hashCode());
 				//TODO SET index Min Max ???
 			} catch (NumberFormatException e) {
 				logger.error("Indexed Column is not an INT", e);

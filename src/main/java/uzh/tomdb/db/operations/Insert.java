@@ -18,7 +18,6 @@ import uzh.tomdb.db.TableColumns;
 import uzh.tomdb.db.TableIndexes;
 import uzh.tomdb.db.TableRows;
 import uzh.tomdb.db.indexes.IndexHandler;
-import uzh.tomdb.db.indexes.UniqueIndexHandler;
 import uzh.tomdb.db.operations.engines.FreeBlocksHandler;
 import uzh.tomdb.db.operations.helpers.Block;
 import uzh.tomdb.db.operations.helpers.Row;
@@ -43,6 +42,7 @@ public class Insert extends Operation implements Operations{
      */
     private List<String> values;
 	private FreeBlocksHandler freeBlocksHandler;
+	private Map<String, IndexHandler> indexHandler;
     private List<String> indexes;
     private List<String> uniqueIndexes;
     private boolean done = false;
@@ -69,8 +69,9 @@ public class Insert extends Operation implements Operations{
      * @param tr
      * @param ti
      */
-	public void init(FreeBlocksHandler freeBlocksHandler, TableRows tr, TableIndexes ti) {
+	public void init(FreeBlocksHandler freeBlocksHandler, Map<String, IndexHandler> ih, TableRows tr, TableIndexes ti) {
 		this.freeBlocksHandler = freeBlocksHandler;
+		this.indexHandler = ih;
 		Map<Number160, Data> tabColumns = DBPeer.getTabColumns();
 		
 		this.tr = tr;
@@ -191,29 +192,31 @@ public class Insert extends Operation implements Operations{
     private boolean putIndex(Row row) throws MalformedSQLQuery, IOException, ClassNotFoundException {
 		boolean success = false;
     	if (indexes.size() > 0) {
-			IndexHandler ih = new IndexHandler(peer, this.hashCode());
 			for (String index: indexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index);
+					success = indexHandler.get(index).put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index, false, this.hashCode());
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
 				}
 			}
+		} else {
+			success = true;
 		}
 		
 		if (uniqueIndexes.size() > 0) {
-			UniqueIndexHandler ih = new UniqueIndexHandler(peer, this.hashCode());
 			for (String index: uniqueIndexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					success = ih.put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index);
+					success = indexHandler.get(index).put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index, true, this.hashCode());
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
 				}
 			}
+		} else {
+			success = true;
 		}
 		return success;
 	}
@@ -255,7 +258,7 @@ public class Insert extends Operation implements Operations{
 	 */
 	@Override
 	public void init() {
-		this.init(null,null,null);	
+		this.init(null,null,null,null);	
 	}
 
 }

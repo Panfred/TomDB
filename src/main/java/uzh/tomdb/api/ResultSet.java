@@ -39,13 +39,13 @@ public class ResultSet implements Runnable {
 	 * 
 	 * To be used in a WHILE loop.
 	 * 
-	 * The BlockingQueue time out after 20 seconds.
+	 * The BlockingQueue time out after 10 minutes. 
 	 * 
 	 * @return
 	 */
 	public boolean next() {	
 		try {
-			current = rows.poll(20, TimeUnit.SECONDS);
+			current = rows.poll(10, TimeUnit.MINUTES);
 		} catch (InterruptedException e) {
 			logger.error("ResultSet Queue Interrupted", e);
 		}
@@ -83,6 +83,23 @@ public class ResultSet implements Runnable {
 	}
 	
 	/**
+	 * Return a double at the given column index.
+	 * 
+	 * @param colIndex
+	 * @return double
+	 * @throws NumberFormatException if the string can not be parsed as a double.
+	 */
+	public double getDouble(int colIndex) {
+		double ret = 0;
+		try {
+			ret = Double.parseDouble(current.getCol(colIndex));
+		} catch (NumberFormatException e) {
+			logger.error("Double parsing error, use getString() instead", e);
+		}
+		return ret;
+	}
+	
+	/**
 	 * Return the String for the given column name.
 	 * 
 	 * @param colLable
@@ -102,6 +119,22 @@ public class ResultSet implements Runnable {
 		int ret = 0;
 		try {
 			ret = Integer.parseInt(current.getCol(columns.get(colLable)));
+		} catch (NumberFormatException e) {
+			logger.error("Integer parsing error, use getString() instead", e);
+		}
+		return ret;
+	}
+	
+	/**
+	 * Return a double for the given column name.
+	 * @param colLable
+	 * @return double
+	 * @throws NumberFormatException if the string can not be parsed as a double.
+	 */
+	public double getDouble(String colLable) {
+		double ret = 0;
+		try {
+			ret = Double.parseDouble(current.getCol(columns.get(colLable)));
 		} catch (NumberFormatException e) {
 			logger.error("Integer parsing error, use getString() instead", e);
 		}

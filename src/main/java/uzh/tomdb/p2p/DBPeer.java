@@ -4,9 +4,7 @@ package uzh.tomdb.p2p;
 import java.io.IOException;
 import java.security.PublicKey;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.SortedMap;
 
 import net.tomp2p.futures.BaseFutureAdapter;
@@ -24,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import uzh.tomdb.api.Connection;
 import uzh.tomdb.api.Statement;
 import uzh.tomdb.db.TableIndexes;
-import uzh.tomdb.db.TableRows;
 
 
 /**
@@ -56,8 +53,8 @@ public class DBPeer {
      */
     private static Map<Number160, Data> tabIndexes = new HashMap<>();
     private static boolean setupStorage = false;
-    private static long timeRows;
-    private static long timeIndexes;
+    //private static long timeRows;
+    //private static long timeIndexes;
     
     public DBPeer(Peer[] peers) {
     	peer = peers[0];
@@ -86,9 +83,9 @@ public class DBPeer {
      * FETCH if older than 1 min.
      */
     public static Map<Number160, Data> getTabRows() {
-    	if (timeRows < System.currentTimeMillis()) {
-    		fetchTableRows();
-    	}
+    	//if (timeRows < System.currentTimeMillis()) {
+    	//	fetchTableRows();
+    	//}
         return tabRows;
     }
 
@@ -96,9 +93,9 @@ public class DBPeer {
      * FETCH if older than 1 min.
      */
     public static Map<Number160, Data> getTabIndexes() {
-    	if (timeIndexes < System.currentTimeMillis()) {
-    		fetchTableIndexes();
-    	}
+    	//if (timeIndexes < System.currentTimeMillis()) {
+    	//	fetchTableIndexes();
+    	//}
         return tabIndexes;
     }
     
@@ -140,19 +137,19 @@ public class DBPeer {
         future.awaitUninterruptibly();
         if(future.isSuccess()) {
             tabRows = future.getDataMap();
-            timeRows = System.currentTimeMillis() + 60000; // 1 min
+            //timeRows = System.currentTimeMillis() + 60000; // 1 min
             logger.debug("Success fetching Table ROWS");
-            logger.debug("FUTURE ROUTE fetch: " + future.getFutureRouting().getRoutingPath());
-            if(!tabRows.isEmpty()) {
-            	try {
-            		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
-            		while(it.hasNext()) {
-            			logger.debug("Rows Metadata: "+((TableRows) it.next().getValue().getObject()).toString());
-            		}
-        		} catch (ClassNotFoundException | IOException e) {
-        			logger.error("Data error", e);
-        		}
-            }
+//            logger.debug("FUTURE ROUTE fetch: " + future.getFutureRouting().getRoutingPath());
+//            if(!tabRows.isEmpty()) {
+//            	try {
+//            		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
+//            		while(it.hasNext()) {
+//            			logger.debug("Rows Metadata: "+((TableRows) it.next().getValue().getObject()).toString());
+//            		}
+//        		} catch (ClassNotFoundException | IOException e) {
+//        			logger.error("Data error", e);
+//        		}
+//            }
         } else {
             //add exception?
             logger.debug("Failure fetching Table ROWS!");
@@ -169,7 +166,7 @@ public class DBPeer {
         future.awaitUninterruptibly();
         if(future.isSuccess()) {
             tabIndexes = future.getDataMap();
-            timeIndexes = System.currentTimeMillis() + 60000; // 1 min
+            //timeIndexes = System.currentTimeMillis() + 60000; // 1 min
             if (!setupStorage) {
             	doSetupStorage();
             }
@@ -207,16 +204,16 @@ public class DBPeer {
      * Non-blocking operation to put the MetaData in the DHT.
      */
     public static void updateTableRows() {
-    	if(!tabRows.isEmpty()) {
-        	try {
-        		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
-        		while(it.hasNext()) {
-        			logger.debug("Rows Metadata before update: "+((TableRows) it.next().getValue().getObject()).toString());
-        		}
-    		} catch (ClassNotFoundException | IOException e) {
-    			logger.error("Data error", e);
-    		}
-        }
+//    	if(!tabRows.isEmpty()) {
+//        	try {
+//        		Iterator<Entry<Number160, Data>> it = tabRows.entrySet().iterator();
+//        		while(it.hasNext()) {
+//        			logger.debug("Rows Metadata before update: "+((TableRows) it.next().getValue().getObject()).toString());
+//        		}
+//    		} catch (ClassNotFoundException | IOException e) {
+//    			logger.error("Data error", e);
+//    		}
+//        }
         FutureDHT future = peer.put(Number160.createHash("TableRowsMetaData")).setDataMap(tabRows).start();
         logger.trace("METADATA-UPDATE-ROWS", "BEGIN", Statement.experiment, future.hashCode());
         future.addListener(new BaseFutureAdapter<FutureDHT>() {
@@ -224,7 +221,7 @@ public class DBPeer {
             public void operationComplete(FutureDHT future) throws Exception {
                 if (future.isSuccess()) {
                     logger.debug("Success updateing ROWS metadata!");
-                    logger.debug("FUTURE ROUTE Update: " + future.getFutureRouting().getRoutingPath());
+//                    logger.debug("FUTURE ROUTE Update: " + future.getFutureRouting().getRoutingPath());
                 } else {
                     //add exception?
                     logger.debug("Failed updateing ROWS metadata!");

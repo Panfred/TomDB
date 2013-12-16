@@ -39,4 +39,10 @@ public class IndexedValue implements Serializable{
 		return rowIds;
 	}
 
+	@Override
+	public String toString() {
+		return "IndexedValue [indexedVal=" + indexedVal + ", rowIds=" + rowIds
+				+ "]";
+	}
+
 }
