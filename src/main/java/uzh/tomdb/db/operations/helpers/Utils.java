@@ -102,9 +102,9 @@ public class Utils {
      *            Upper bound
      * @return The intervals for a segment
      */
-    public static List<DSTBlock> splitRange(int from, int to, int upper, String column) {
+    public static List<DSTBlock> splitRange(int from, int to, int upper, String tabName, String column) {
         List<DSTBlock> retVal = new ArrayList<>();
-        splitRange(from, to, 0, upper, getDSTHeight(upper), retVal, column);
+        splitRange(from, to, 0, upper, getDSTHeight(upper), retVal, tabName, column);
         return retVal;
     }
     
@@ -126,17 +126,17 @@ public class Utils {
      * @param column
      * 			  Column name
      */
-    private static void splitRange(int s, int t, int lower, int upper, int maxDepth, final List<DSTBlock> retVal, String column) {
+    private static void splitRange(int s, int t, int lower, int upper, int maxDepth, final List<DSTBlock> retVal, String tabName, String column) {
         if (s <= lower && upper <= t || maxDepth == 0) {
-            retVal.add(new DSTBlock(lower, upper, column));
+            retVal.add(new DSTBlock(lower, upper, tabName, column));
             return;
         }
         int mid = (lower + upper) / 2;
         if (s <= mid) {
-            splitRange(s, t, lower, mid, maxDepth - 1, retVal, column);
+            splitRange(s, t, lower, mid, maxDepth - 1, retVal, tabName, column);
         }
         if (t > mid) {
-            splitRange(s, t, mid + 1, upper, maxDepth - 1, retVal, column);
+            splitRange(s, t, mid + 1, upper, maxDepth - 1, retVal, tabName, column);
         }
     }
     

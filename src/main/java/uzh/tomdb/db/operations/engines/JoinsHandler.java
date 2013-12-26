@@ -3,6 +3,7 @@ package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -48,7 +49,7 @@ public class JoinsHandler implements Handler{
 	/**
 	 * To handle asynchronous DHT operations.
 	 */
-	private Set<String> futureManager = new HashSet<>();
+	private Set<String> futureManager = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 	/**
 	 * Parsed where conditions, join conditions removed.
 	 */
@@ -75,6 +76,9 @@ public class JoinsHandler implements Handler{
 	 * The internal map contains the actual row indexed in the invIndex.
 	 */
 	private Map<String, Map<Integer, Row>> rows = new HashMap<>();
+	/**
+	 * Columns of the joined row.
+	 */
 	private Map<String, Integer> rowCols = new LinkedHashMap<>();
 	/**
 	 * ConditionsHandler to further elaborate the joined row matching the where conditions.
@@ -83,11 +87,11 @@ public class JoinsHandler implements Handler{
 	/**
 	 * Save the elaborated joined rows to avoid sending duplicates to the ResultSet.
 	 */
-	private Set<String> elaboratedRows = new HashSet<>();
+	private Set<String> elaboratedRows = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 	/**
 	 * Save the elaborated indexed values in case that the DST block is full and it needs to retrieve more blocks (i.e. duplicates indexed values).
 	 */
-	private Set<String> elaboratedIndex = new HashSet<>();
+	private Set<String> elaboratedIndex = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 	/**
 	 * The external map is used to separate table one and table two.
 	 * The internal map contains as key the indexed value, used to find join-matches. The value refer to the corresponding row IDs that have to be joined.
@@ -367,7 +371,7 @@ public class JoinsHandler implements Handler{
 		if (counter.get() > 0) {
 			logger.trace("JOIN-GET-TABLE", "BEGIN", Statement.experiment, expHash, tabOneRowIds.hashCode()+tabTwoRowIds.hashCode(), counter.get());
 		}
-		
+
 		for (Block block: blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
@@ -384,10 +388,11 @@ public class JoinsHandler implements Handler{
 						removeFromFutureManager(future.toString());
 					}
 					if (counter.decrementAndGet() == 0) {
-						logger.trace("JOIN-GET-TABLE", "END", Statement.experiment, expHash, tabOneRowIds.hashCode()+tabTwoRowIds.hashCode());
+						logger.trace("JOIN-GET-TABLE", "END", Statement.experiment, expHash, tabOneRowIds.hashCode()+tabTwoRowIds.hashCode());	
 					}
-				}	
+				}
 			});
+		
 		}
 
 	}

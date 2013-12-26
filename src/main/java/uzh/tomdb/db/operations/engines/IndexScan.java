@@ -3,10 +3,12 @@ package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.tomp2p.futures.BaseFutureAdapter;
@@ -49,11 +51,11 @@ public class IndexScan {
 	/**
 	 * Save the elaborated indexed values in case that the DST block is full and it needs to retrieve more blocks (i.e. duplicates indexed values).
 	 */
-	private Set<Number160> elaboratedIndex = new HashSet<>();
+	private Set<Number160> elaboratedIndex = Collections.newSetFromMap(new ConcurrentHashMap<Number160, Boolean>());
 	/**
 	 * Save the elaborated table Blocks to avoid duplicate gets.
 	 */
-	private Set<String> elaboratedBlocks = new HashSet<>();
+	private Set<String> elaboratedBlocks = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 	private int expHash;
 	
 	public IndexScan(Select select, ConditionsHandler handler) {
@@ -143,8 +145,8 @@ public class IndexScan {
 			break;
 		}
 		
-		List<DSTBlock> dstBlocks = Utils.splitRange(from, to, select.getTi().getDSTRange(), select.getTabName()+":"+cond.getColumn());
-		
+		List<DSTBlock> dstBlocks = Utils.splitRange(from, to, select.getTi().getDSTRange(), select.getTabName(), cond.getColumn());
+
 		logger.trace("INDEXSCAN-GET-DST", "BEGIN", Statement.experiment, expHash, condition.hashCode(), dstBlocks.size());	
 		
 		getDST(dstBlocks, new HashSet<String>(), new AtomicInteger(0), condition.hashCode());

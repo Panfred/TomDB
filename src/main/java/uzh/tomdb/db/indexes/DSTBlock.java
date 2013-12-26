@@ -17,24 +17,26 @@ public class DSTBlock {
 
     private final int from;
     private final int to;
+    private final String tabName;
     private final String tabCol;
 
     /**
      * @param from Interval from
      * @param to Interval to
      */
-    public DSTBlock(int from, int to, String tabCol) {
+    public DSTBlock(int from, int to, String tabName, String tabCol) {
         if (from > to) {
             throw new IllegalArgumentException("from cannot be greater than to");
         }
         this.from = from;
         this.to = to;
+        this.tabName = tabName;
         this.tabCol = tabCol;
     }
 
     @Override
     public String toString() {
-        return "DSTBlock:"+tabCol+":[" + from + ".." + to + "]";
+        return "DSTBlock:"+tabName+":"+tabCol+":[" + from + ".." + to + "]";
     }
 
     public Number160 getHash() {
@@ -48,8 +50,8 @@ public class DSTBlock {
         int mid = (from + to) / 2;
 
         List<DSTBlock> retVal = new ArrayList<>();
-        retVal.add(new DSTBlock(from, mid, tabCol));
-        retVal.add(new DSTBlock(mid + 1, to, tabCol));
+        retVal.add(new DSTBlock(from, mid, tabName, tabCol));
+        retVal.add(new DSTBlock(mid + 1, to, tabName, tabCol));
         return retVal;
     }
 
@@ -62,10 +64,10 @@ public class DSTBlock {
 
         if (nr <= mid) {
             // left interval
-            return new DSTBlock(from, mid, tabCol);
+            return new DSTBlock(from, mid, tabName, tabCol);
         } else {
             // right interval
-            return new DSTBlock(mid + 1, to, tabCol);
+            return new DSTBlock(mid + 1, to, tabName, tabCol);
         }
     }
 

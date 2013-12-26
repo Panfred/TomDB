@@ -147,7 +147,7 @@ public class IntegrationTest {
 			counter++;
 			System.out.println("Join1::"+results.rowToString());
 		}
-		assertEquals(188, counter);
+		assertEquals(189, counter);
 	}
 	
 	@Test

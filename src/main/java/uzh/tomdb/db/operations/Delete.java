@@ -172,7 +172,7 @@ public class Delete extends Operation implements Operations, TempResults{
 		for (String col: ti.getIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
-				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col, this.hashCode());
+				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName, col, this.hashCode());
 				//TODO SET index Min Max ???
 			} catch (NumberFormatException e) {
 				logger.error("Indexed Column is not an INT", e);
@@ -181,7 +181,7 @@ public class Delete extends Operation implements Operations, TempResults{
 		for (String col: ti.getUnivocalIndexes()) {
 			try {
 				int indexedVal = Integer.parseInt(row.getCol(col));
-				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+col, this.hashCode());
+				ih.remove(row.getRowID(), indexedVal, ti.getDSTRange(), tabName, col, this.hashCode());
 				//TODO SET index Min Max ???
 			} catch (NumberFormatException e) {
 				logger.error("Indexed Column is not an INT", e);

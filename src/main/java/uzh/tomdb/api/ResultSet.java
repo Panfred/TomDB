@@ -45,7 +45,7 @@ public class ResultSet implements Runnable {
 	 */
 	public boolean next() {	
 		try {
-			current = rows.poll(10, TimeUnit.MINUTES);
+			current = rows.poll(5, TimeUnit.MINUTES);
 		} catch (InterruptedException e) {
 			logger.error("ResultSet Queue Interrupted", e);
 		}

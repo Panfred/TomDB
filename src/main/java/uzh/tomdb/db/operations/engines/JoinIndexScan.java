@@ -56,7 +56,7 @@ public class JoinIndexScan {
 	 */
 	public void start() throws MalformedSQLQuery, ClassNotFoundException, IOException {
 		
-		List<DSTBlock> dstBlocks = Utils.splitRange(select.getTi().getMin(jCond.getColumn(select.getTabName())), select.getTi().getMax(jCond.getColumn(select.getTabName())), select.getTi().getDSTRange(), select.getTabName()+":"+jCond.getColumn(select.getTabName()));
+		List<DSTBlock> dstBlocks = Utils.splitRange(select.getTi().getMin(jCond.getColumn(select.getTabName())), select.getTi().getMax(jCond.getColumn(select.getTabName())), select.getTi().getDSTRange(), select.getTabName(), jCond.getColumn(select.getTabName()));
 		
 		logger.trace("JOIN-GET-INDEXSCAN", "BEGIN", Statement.experiment, expHash, dstBlocks.size());
 		

@@ -195,7 +195,7 @@ public class Insert extends Operation implements Operations{
 			for (String index: indexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					success = indexHandler.get(index).put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index, false, this.hashCode());
+					success = indexHandler.get(index).put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName, index, false, this.hashCode());
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);
@@ -209,7 +209,7 @@ public class Insert extends Operation implements Operations{
 			for (String index: uniqueIndexes) {
 				try {
 					int indexedVal = Integer.parseInt(row.getCol(tc.getColumnId(index)));
-					success = indexHandler.get(index).put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName+":"+index, true, this.hashCode());
+					success = indexHandler.get(index).put(row.getRowID(), indexedVal, ti.getDSTRange(), tabName, index, true, this.hashCode());
 					ti.setMinMax(index, indexedVal);
 				} catch (NumberFormatException e) {
 					logger.error("Indexed Column is not an INT", e);

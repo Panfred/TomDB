@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.tomp2p.futures.BaseFutureAdapter;
@@ -32,7 +33,7 @@ import uzh.tomdb.db.operations.helpers.Utils;
 public class IndexHandler {
 	private final Logger logger = LoggerFactory.getLogger(IndexHandler.class);
 	private final Peer peer;
-	private Map<Integer, IndexedValue> alreadyIndexed = new HashMap<>();
+	private Map<Integer, IndexedValue> alreadyIndexed = new ConcurrentHashMap<>();
 	private int expHash;
 	
 	public IndexHandler(Peer peer) {
@@ -48,7 +49,7 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	public boolean put(int rowId, int indexedVal, int upperBound, String tabCol, boolean univocal, int expHash) throws IOException, ClassNotFoundException {
+	public boolean put(int rowId, int indexedVal, int upperBound, String tabName, String tabCol, boolean univocal, int expHash) throws IOException, ClassNotFoundException {
 		this.expHash = expHash;
 		
 		IndexedValue iv = null;
@@ -56,7 +57,7 @@ public class IndexHandler {
 		if (alreadyIndexed.containsKey(indexedVal)) {
 			iv = alreadyIndexed.get(indexedVal);
 		} else {
-			iv = checkIndex(indexedVal, upperBound, tabCol);
+			iv = checkIndex(indexedVal, upperBound, tabName, tabCol);
 		}
 		
 		if (iv == null) {
@@ -68,7 +69,7 @@ public class IndexHandler {
 			iv.addRowId(rowId);
 		}
 		alreadyIndexed.put(indexedVal, iv);
-		putDST(iv, upperBound, tabCol);
+		putDST(iv, upperBound, tabName, tabCol);
 		return true;
 	}
 	
@@ -81,13 +82,13 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	public void remove(int rowId, int indexedVal, int upperBound, String tabCol, int expHash) throws ClassNotFoundException, IOException {
+	public void remove(int rowId, int indexedVal, int upperBound, String tabName, String tabCol, int expHash) throws ClassNotFoundException, IOException {
 		this.expHash = expHash;
 		
 		IndexedValue iv = null;
 		List<Integer> rowIds = new ArrayList<>();
 		
-		iv = checkIndex(indexedVal, upperBound, tabCol);
+		iv = checkIndex(indexedVal, upperBound, tabName, tabCol);
 		
 		if (iv != null) {
 			rowIds = iv.getRowIds();
@@ -97,9 +98,9 @@ public class IndexHandler {
 		
 		if (rowIds.size() > 1) {
 			rowIds.remove((Object) rowId);
-			putDST(iv, upperBound, tabCol);
+			putDST(iv, upperBound, tabName, tabCol);
 		} else if (rowIds.size() == 1) {
-			removeDST(iv, upperBound, tabCol);
+			removeDST(iv, upperBound, tabName, tabCol);
 		} else {
 			logger.error("Indexed value not found in the index!");
 		}
@@ -113,9 +114,9 @@ public class IndexHandler {
 	 * @param column name
 	 * @return IndexedValue object
 	 */
-	private IndexedValue checkIndex(int indexedVal, int upperBound, String tabCol) throws ClassNotFoundException, IOException {
+	private IndexedValue checkIndex(int indexedVal, int upperBound, String tabName, String tabCol) throws ClassNotFoundException, IOException {
 		
-		Map<Integer, IndexedValue> results = getDSTblocking(indexedVal, indexedVal, upperBound, tabCol);
+		Map<Integer, IndexedValue> results = getDSTblocking(indexedVal, indexedVal, upperBound, tabName, tabCol);
 		
 		if (results.size() > 0) {
 			return results.get(indexedVal);
@@ -131,14 +132,15 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	private void putDST(IndexedValue indexedVal, int upperBound, String tabCol) throws IOException {
+	private void putDST(IndexedValue indexedVal, int upperBound, String tabName, String tabCol) throws IOException {
 			
-		  DSTBlock block = new DSTBlock(0, upperBound, tabCol);
+		  DSTBlock block = new DSTBlock(0, upperBound, tabName, tabCol);
 		  
 		  final AtomicInteger counter = new AtomicInteger(Utils.getDSTHeight(upperBound));
 		  logger.trace("INDEXHANDLER-PUT-DST", "BEGIN", Statement.experiment, expHash, counter.get());
 		  
 		  for (int i = 0; i <= Utils.getDSTHeight(upperBound); i++) {
+
 		      Number160 key = Number160.createHash(block.toString());
 		      FutureDHT future = peer.put(key).setData(new Number160(indexedVal.getIndexedVal()), new Data(indexedVal)).start();
 		      future.addListener(new BaseFutureAdapter<FutureDHT>() {
@@ -167,9 +169,9 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column name
 	 */
-	private void removeDST(IndexedValue iv, int upperBound, String tabCol) {
+	private void removeDST(IndexedValue iv, int upperBound, String tabName, String tabCol) {
 		
-		DSTBlock block = new DSTBlock(0, upperBound, tabCol);
+		DSTBlock block = new DSTBlock(0, upperBound, tabName, tabCol);
 		
 		final AtomicInteger counter = new AtomicInteger(Utils.getDSTHeight(upperBound));
 		logger.trace("INDEXHANDLER-REMOVE-DST", "BEGIN", Statement.experiment, expHash, counter.get());
@@ -204,8 +206,8 @@ public class IndexHandler {
 	 * @param upperBound
 	 * @param column
 	 */
-	private Map<Integer, IndexedValue> getDSTblocking(int from, int to, int upperBound, String tabCol) throws ClassNotFoundException, IOException {
-      List<DSTBlock> rowsBlocks = Utils.splitRange(from, to, upperBound, tabCol);
+	private Map<Integer, IndexedValue> getDSTblocking(int from, int to, int upperBound, String tabName, String tabCol) throws ClassNotFoundException, IOException {
+      List<DSTBlock> rowsBlocks = Utils.splitRange(from, to, upperBound, tabName, tabCol);
       Map<Integer, IndexedValue> results = new HashMap<>();
       AtomicInteger counter = new AtomicInteger(0);
       

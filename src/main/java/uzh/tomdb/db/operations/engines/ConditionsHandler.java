@@ -3,12 +3,13 @@ package uzh.tomdb.db.operations.engines;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.tomp2p.peers.Number160;
 import net.tomp2p.storage.Data;
@@ -39,7 +40,7 @@ public class ConditionsHandler implements Handler{
 	/**
 	 * To handle asynchronous DHT operations.
 	 */
-	private Set<String> futureManager = new HashSet<>();
+	private Set<String> futureManager = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 	/**
 	 * Unparsed conditions.
 	 */
@@ -52,6 +53,9 @@ public class ConditionsHandler implements Handler{
 	 * OR condition is a list, can contain OR conditions and AND objects.
 	 */
 	private List<Conditions> orCond = new ArrayList<>();
+	/**
+	 * Columns of the result row.
+	 */
 	private Map<String, Integer> resultRowCols;
 	
 	/**
