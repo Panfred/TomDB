@@ -196,8 +196,7 @@ public class Tokenizer implements ListIterator<String>{
                     break;
                 default:
                     tokens.add(spl[i]);
-            }
+            }    
         }
-
     }
 }

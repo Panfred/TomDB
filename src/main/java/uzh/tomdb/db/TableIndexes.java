@@ -96,7 +96,6 @@ public class TableIndexes implements Serializable{
 			iMeta.min = value;
 			iMeta.max = value;
 		}
-		
 	}
 	
 	public int getMin(String index) {

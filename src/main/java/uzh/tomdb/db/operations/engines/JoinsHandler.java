@@ -209,7 +209,6 @@ public class JoinsHandler implements Handler{
 	
 	/**
 	 * The rows asynchronous coming from the tablescans of both tables are added here to the respective invIndex and rows maps.
-	 * After that the checkMatches method is started, so that every time the already possible matches are returned as results to the ResultSet.
 	 */
 	@Override
 	public void filterRows(Map<Number160, Data> dataMap, String future) throws ClassNotFoundException, IOException, MalformedSQLQuery {
@@ -236,15 +235,8 @@ public class JoinsHandler implements Handler{
 			}	
 			
 		}
-
-		removeFromFutureManager(future);	
 		
-		/**
-		 * Start matching only when all rows are returned.
-		 */
-		if (futureManager.isEmpty()) {
-			checkMatches();
-		}
+		removeFromFutureManager(future);	
 		
 	}
 	
@@ -252,7 +244,8 @@ public class JoinsHandler implements Handler{
 	 * For every keys of the invIndex for table one, a matching key in invIndex for table two is searched.
 	 * If a match is found, the row IDs for table one and table two are sent to joinRows method.
 	 */
-	private void checkMatches() throws MalformedSQLQuery {
+	private void checkMatches() {
+		
 		String tabOne = tabNames.get(0);
 		String tabTwo = tabNames.get(1);
 		
@@ -278,7 +271,7 @@ public class JoinsHandler implements Handler{
 	 * @param rowOne
 	 * @param rowTwo
 	 */
-	private void joinRows(List<Integer> oneIds, List<Integer> twoIds) throws NumberFormatException, MalformedSQLQuery {
+	private void joinRows(List<Integer> oneIds, List<Integer> twoIds) {
 		String tabOne = tabNames.get(0);
 		String tabTwo = tabNames.get(1);
 		
@@ -313,8 +306,9 @@ public class JoinsHandler implements Handler{
 		for (Map.Entry<Number160, Data> entry : dataMap.entrySet()) {
 			if (!elaboratedIndex.contains(tabName+":"+entry.getKey())) {
 				elaboratedIndex.add(tabName+":"+entry.getKey());
-				IndexedValue iv = (IndexedValue) entry.getValue().getObject();
-				indexes.get(tabName).put(iv.getIndexedVal(), iv.getRowIds());
+				IndexedValue iv;	
+					iv = (IndexedValue) entry.getValue().getObject();	
+					indexes.get(tabName).put(iv.getIndexedVal(), iv.getRowIds());
 			}
 		}
 		
@@ -350,28 +344,33 @@ public class JoinsHandler implements Handler{
 	private void tableScans(final List<Integer> tabOneRowIds, final List<Integer> tabTwoRowIds) {
 		List<Block> blocks = new ArrayList<>();
 		
-		for (Integer id: tabOneRowIds) {
-			List<Block> ls = Utils.getBlocks(id, id, selects.get(0).getTr().getRowsNum(), selects.get(0).getTr().getBlockSize(), selects.get(0).getTabName());
-			Block block = ls.get(0);
-			if (!elaboratedBlocks.contains(block.toString())) {
-				elaboratedBlocks.add(block.toString());
-				blocks.add(block);
-			}
-		}
-		for (Integer id: tabTwoRowIds) {
-			List<Block> ls = Utils.getBlocks(id, id, selects.get(1).getTr().getRowsNum(), selects.get(1).getTr().getBlockSize(), selects.get(1).getTabName());
-			Block block = ls.get(0);
-			if (!elaboratedBlocks.contains(block.toString())) {
-				elaboratedBlocks.add(block.toString());
-				blocks.add(block);
+		if (tabOneRowIds != null) {
+			for (Integer id: tabOneRowIds) {
+				List<Block> ls = Utils.getBlocks(id, id, selects.get(0).getTr().getRowsNum(), selects.get(0).getTr().getBlockSize(), selects.get(0).getTabName());
+				Block block = ls.get(0);
+				if (!elaboratedBlocks.contains(block.toString())) {
+					elaboratedBlocks.add(block.toString());
+					blocks.add(block);
+				}
 			}
 		}
 		
+		if (tabTwoRowIds != null) {
+			for (Integer id: tabTwoRowIds) {
+				List<Block> ls = Utils.getBlocks(id, id, selects.get(1).getTr().getRowsNum(), selects.get(1).getTr().getBlockSize(), selects.get(1).getTabName());
+				Block block = ls.get(0);
+				if (!elaboratedBlocks.contains(block.toString())) {
+					elaboratedBlocks.add(block.toString());
+					blocks.add(block);
+				}
+			}
+		}
+
 		final AtomicInteger counter = new AtomicInteger(blocks.size());
 		if (counter.get() > 0) {
 			logger.trace("JOIN-GET-TABLE", "BEGIN", Statement.experiment, expHash, tabOneRowIds.hashCode()+tabTwoRowIds.hashCode(), counter.get());
 		}
-
+		
 		for (Block block: blocks) {
 			
 			FutureDHT future = select.getPeer().get(block.getHash()).setAll().start();
@@ -402,9 +401,18 @@ public class JoinsHandler implements Handler{
 		futureManager.add(future);
 	}
 
+	/**
+	 * The checkMatches() is started at the end only when all the results arrived.
+	 */
 	@Override
 	public void removeFromFutureManager(String future) {
 		futureManager.remove(future);
+		/**
+		 * Start matching only when all rows are returned.
+		 */
+		if (futureManager.isEmpty()) {
+			checkMatches();
+		}
 	}
 	
 	private String[] dotSplitString(String string) {

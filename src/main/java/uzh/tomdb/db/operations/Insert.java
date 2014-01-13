@@ -233,7 +233,7 @@ public class Insert extends Operation implements Operations{
             if ((values.size() == tc.getNumOfCols())) {
                 row = new Row(tabName, rowId, values, tc.getColumns());
             } else {
-            	throw new MalformedSQLQuery("Num of Values NOT equal num of Columns!");       
+            	throw new MalformedSQLQuery("Num of Values NOT equal num of Columns!");
             }
         } 
         else {

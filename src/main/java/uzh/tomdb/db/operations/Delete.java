@@ -113,13 +113,6 @@ public class Delete extends Operation implements Operations, TempResults{
 		List<Block> blocks = Utils.getBlocks(row.getRowID(), row.getRowID(), tr.getRowsNum(), tr.getBlockSize(), tabName);
 		Number160 blockKey = blocks.get(0).getHash();
 		
-		try {
-			addToFreeBlocks(row, blockKey);
-			updateIndexes(row);
-		} catch (ClassNotFoundException | IOException e) {
-			logger.error("Data error", e);
-		} 
-		
 		FutureDHT future = peer.put(blockKey).setData(new Number160(row.getRowID()), data).start();
 		futureHandler.incrementAndGet();
 		logger.trace("DELETE-PUT-ROW", "BEGIN", Statement.experiment, future.hashCode(), this.hashCode());
@@ -140,6 +133,13 @@ public class Delete extends Operation implements Operations, TempResults{
                 }
             }
         });
+		
+		try {
+			addToFreeBlocks(row, blockKey);
+			updateIndexes(row);
+		} catch (ClassNotFoundException | IOException e) {
+			logger.error("Data error", e);
+		} 
 
 	}
 	

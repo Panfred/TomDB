@@ -26,7 +26,7 @@
   </appender>
 
   <logger name="net.tomp2p" level="ERROR"/>
-  
+	
   <root level="TRACE">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="FILE" />

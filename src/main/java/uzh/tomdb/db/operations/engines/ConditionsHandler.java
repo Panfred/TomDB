@@ -227,11 +227,11 @@ public class ConditionsHandler implements Handler{
 	 * 
 	 * @param row
 	 */
-	public void filterJoinedRow(Row row) throws NumberFormatException, MalformedSQLQuery {
-		
+	public void filterJoinedRow(Row row) {
+
 		if (andCond.getConditions().size() == 0 && orCond.size() == 0) {
 			select.addToResultSet(filterColumns(row));
-		} else if (orCond.size() > 0 && andCond.getConditions().size() > 0) { //if both set is the case of () OR () AND () ...
+		} else if (orCond.size() > 0 && andCond.getConditions().size() > 0) {
 			if (checkOrConditions(row) || checkAndConditions(andCond, row)) {
 				select.addToResultSet(filterColumns(row));
 			}
@@ -244,7 +244,7 @@ public class ConditionsHandler implements Handler{
 				select.addToResultSet(filterColumns(row));
 			}
 		}
-		
+
 	}
 	
 	/**
@@ -252,7 +252,7 @@ public class ConditionsHandler implements Handler{
 	 * 
 	 * @param row
 	 */
-	private boolean checkOrConditions(Row row) throws NumberFormatException, MalformedSQLQuery {
+	private boolean checkOrConditions(Row row) {
 		int trueNum = 0;
 		for (Conditions cond: orCond) {
 			if (cond.getType().equals(Tokens.AND)) {
@@ -279,7 +279,7 @@ public class ConditionsHandler implements Handler{
 	 * @param and condition
 	 * @param row
 	 */
-	private boolean checkAndConditions(AndCondition aCond, Row row) throws NumberFormatException, MalformedSQLQuery {
+	private boolean checkAndConditions(AndCondition aCond, Row row) {
 		int trueNum = 0;
 		for (Conditions condition: aCond.getConditions()) {
 			WhereCondition cond = (WhereCondition) condition;
@@ -299,7 +299,7 @@ public class ConditionsHandler implements Handler{
 	 * @param condition
 	 * @param row
 	 */
-	private boolean checkCondition(WhereCondition condition, Row row) throws NumberFormatException, MalformedSQLQuery {
+	private boolean checkCondition(WhereCondition condition, Row row) {
 		
 		if (condition.getOperator().equals(Tokens.EQUAL)) {
 			if (row.getCol(condition.getColumn()).equals(condition.getValue())) {

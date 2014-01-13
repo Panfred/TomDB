@@ -44,7 +44,7 @@ public class TomDB {
      */
     public static void startDHT() {
     	if (peers.length == 0) {
-    		createLocalPeers(1);
+    		createLocalPeers(1, false);
     		logger.info("Succesfully created the bootstrapping peer with the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
     	} else {
     		logger.info("The bootstrapping peer has the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
@@ -59,11 +59,8 @@ public class TomDB {
      * @param randomPort
      */
     public static void startDHT(String bootstrapAddress, boolean randomPort) {
-    	if (randomPort) {
-    		port = 4000 + (rnd.nextInt() % 1000);
-    	}
     	if (peers.length == 0) {
-    		createLocalPeers(1);
+    		createLocalPeers(1, randomPort);
     		bootstrap(bootstrapAddress);
     		logger.info("Succesfully created and bootstrapped one peer!");
     	} else {
@@ -78,7 +75,7 @@ public class TomDB {
 	public static Connection getConnection() {
         if (DBpeer == null) {
         	if (peers.length == 0) {
-        		createLocalPeers(1);
+        		createLocalPeers(1, false);
         		DBpeer = new DBPeer(peers);
         		logger.info("Succesfully created the bootstrapping peer and the DB peer with the address {} and port {}!", peers[0].getPeerAddress().getInetAddress().getHostAddress(), peers[0].getPeerAddress().portUDP());
         	} else {
@@ -101,11 +98,8 @@ public class TomDB {
 	 */
     public static Connection getConnection(String bootstrapAddress, boolean randomPort) {    	
     	if (DBpeer == null) {
-    		if (randomPort) {
-        		port = 4000 + (rnd.nextInt() % 1000);
-        	}
         	if (peers.length == 0) {
-        		createLocalPeers(1);
+        		createLocalPeers(1, randomPort);
         		bootstrap(bootstrapAddress);
         		DBpeer = new DBPeer(peers);
         		logger.info("Succesfully created and bootstrapped one peer and created the DB peer!");
@@ -158,8 +152,10 @@ public class TomDB {
 	 * Create n local peers on the same port.
 	 * @param num
 	 */
-    public static void createLocalPeers(int num) {
-    	
+    public static void createLocalPeers(int num, boolean randomPort) {
+    	if (randomPort) {
+    		port = 4000 + (rnd.nextInt() % 1000);
+    	}
         peers = new Peer[num];
         for ( int i = 0; i < num; i++ )
         {

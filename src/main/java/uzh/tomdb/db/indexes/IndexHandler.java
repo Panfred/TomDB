@@ -41,8 +41,8 @@ public class IndexHandler {
 	}
 	
 	/**
-	 * Operation to insert a new non-univocal indexed value in the index.
-	 * The index is first checked if the value has been already indexed, in that case the row ID of the new value is added to the list.
+	 * Operation to insert a new indexed value in the index.
+	 * The index is first checked if the value has been already indexed.
 	 * 
 	 * @param rowId
 	 * @param indexedVal

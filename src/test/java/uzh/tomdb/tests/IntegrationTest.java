@@ -22,7 +22,7 @@ public class IntegrationTest {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		TomDB.createLocalPeers(100);
+		TomDB.createLocalPeers(100, false);
 		Connection con = TomDB.getConnection();
 		stmt = con.createStatement();
 	}
@@ -147,7 +147,7 @@ public class IntegrationTest {
 			counter++;
 			System.out.println("Join1::"+results.rowToString());
 		}
-		assertEquals(189, counter);
+		assertEquals(188, counter);
 	}
 	
 	@Test

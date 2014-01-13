@@ -27,7 +27,7 @@ public class Main {
 			if (args[0].contains(".")) {
 				TomDB.startDHT(args[0], randomPort);
 			} else {
-				TomDB.createLocalPeers(Integer.parseInt(args[0]));
+				TomDB.createLocalPeers(Integer.parseInt(args[0]), randomPort);
 				TomDB.startDHT();
 			}
 				
@@ -38,7 +38,7 @@ public class Main {
 				}
 				TomDB.startDHT(args[0], randomPort);
 			} else {
-				TomDB.createLocalPeers(Integer.parseInt(args[0]));
+				TomDB.createLocalPeers(Integer.parseInt(args[0]), randomPort);
 				TomDB.startDHT(args[1], randomPort);
 			}
 			
@@ -46,7 +46,7 @@ public class Main {
 			if (args[2].equals("true")) {
 				randomPort = true;
 			}
-			TomDB.createLocalPeers(Integer.parseInt(args[0]));
+			TomDB.createLocalPeers(Integer.parseInt(args[0]), randomPort);
 			TomDB.startDHT(args[1], randomPort);
 		} else {
 			TomDB.startDHT();
